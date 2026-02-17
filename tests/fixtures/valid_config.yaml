@@ -1,0 +1,7 @@
+pipeline:
+  name: "test_shoot"
+  input_dir: "/tmp/input"
+  input_formats: ["raw"]
+  output_base: "/tmp/output"
+  gpu_backend: "cpu"
+  workers: 2

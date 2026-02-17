@@ -1,0 +1,318 @@
+{
+    "summary": {
+        "total_input": 22,
+        "total_passed": 11,
+        "total_restored": 11,
+        "elapsed_seconds": 18.611867904663086
+    },
+    "images": [
+        {
+            "path": "D:\\studio\\tools\\vibecoding\\sample_photos\\creatives\\013A0258.JPG",
+            "blur_score": 305.42787068318694,
+            "fft_energy": 0.0,
+            "brisque_score": 40.0,
+            "niqe_score": 5.0,
+            "has_faces": false,
+            "blink_detected": false,
+            "expression_score": 0.8,
+            "overall_quality": 0.9,
+            "passed": true,
+            "rejection_reasons": []
+        },
+        {
+            "path": "D:\\studio\\tools\\vibecoding\\sample_photos\\creatives\\013A0261.JPG",
+            "blur_score": 202.99353096159336,
+            "fft_energy": 0.0,
+            "brisque_score": 40.0,
+            "niqe_score": 5.0,
+            "has_faces": false,
+            "blink_detected": false,
+            "expression_score": 0.8,
+            "overall_quality": 0.9,
+            "passed": true,
+            "rejection_reasons": []
+        },
+        {
+            "path": "D:\\studio\\tools\\vibecoding\\sample_photos\\creatives\\013A0262.JPG",
+            "blur_score": 499.087443504627,
+            "fft_energy": 0.0,
+            "brisque_score": 40.0,
+            "niqe_score": 5.0,
+            "has_faces": false,
+            "blink_detected": false,
+            "expression_score": 0.8,
+            "overall_quality": 0.9,
+            "passed": true,
+            "rejection_reasons": []
+        },
+        {
+            "path": "D:\\studio\\tools\\vibecoding\\sample_photos\\creatives\\013A0263.JPG",
+            "blur_score": 36.16298043030545,
+            "fft_energy": 0.0,
+            "brisque_score": 40.0,
+            "niqe_score": 5.0,
+            "has_faces": false,
+            "blink_detected": false,
+            "expression_score": 0.8,
+            "overall_quality": 0.4,
+            "passed": false,
+            "rejection_reasons": [
+                "blurry"
+            ]
+        },
+        {
+            "path": "D:\\studio\\tools\\vibecoding\\sample_photos\\creatives\\013A0264.JPG",
+            "blur_score": 78.28517839236854,
+            "fft_energy": 0.0,
+            "brisque_score": 40.0,
+            "niqe_score": 5.0,
+            "has_faces": false,
+            "blink_detected": false,
+            "expression_score": 0.8,
+            "overall_quality": 0.4,
+            "passed": false,
+            "rejection_reasons": [
+                "blurry"
+            ]
+        },
+        {
+            "path": "D:\\studio\\tools\\vibecoding\\sample_photos\\creatives\\013A0268.JPG",
+            "blur_score": 34.961268175035194,
+            "fft_energy": 0.0,
+            "brisque_score": 40.0,
+            "niqe_score": 5.0,
+            "has_faces": false,
+            "blink_detected": false,
+            "expression_score": 0.8,
+            "overall_quality": 0.4,
+            "passed": false,
+            "rejection_reasons": [
+                "blurry"
+            ]
+        },
+        {
+            "path": "D:\\studio\\tools\\vibecoding\\sample_photos\\creatives\\013A0269.JPG",
+            "blur_score": 31.647296479872292,
+            "fft_energy": 0.0,
+            "brisque_score": 40.0,
+            "niqe_score": 5.0,
+            "has_faces": false,
+            "blink_detected": false,
+            "expression_score": 0.8,
+            "overall_quality": 0.4,
+            "passed": false,
+            "rejection_reasons": [
+                "blurry"
+            ]
+        },
+        {
+            "path": "D:\\studio\\tools\\vibecoding\\sample_photos\\creatives\\013A0270.JPG",
+            "blur_score": 102.56211260908013,
+            "fft_energy": 0.0,
+            "brisque_score": 40.0,
+            "niqe_score": 5.0,
+            "has_faces": false,
+            "blink_detected": false,
+            "expression_score": 0.8,
+            "overall_quality": 0.9,
+            "passed": true,
+            "rejection_reasons": []
+        },
+        {
+            "path": "D:\\studio\\tools\\vibecoding\\sample_photos\\creatives\\013A0271.JPG",
+            "blur_score": 97.78035278864212,
+            "fft_energy": 0.0,
+            "brisque_score": 40.0,
+            "niqe_score": 5.0,
+            "has_faces": false,
+            "blink_detected": false,
+            "expression_score": 0.8,
+            "overall_quality": 0.4,
+            "passed": false,
+            "rejection_reasons": [
+                "blurry"
+            ]
+        },
+        {
+            "path": "D:\\studio\\tools\\vibecoding\\sample_photos\\creatives\\013A0272.JPG",
+            "blur_score": 142.01431518058493,
+            "fft_energy": 0.0,
+            "brisque_score": 40.0,
+            "niqe_score": 5.0,
+            "has_faces": false,
+            "blink_detected": false,
+            "expression_score": 0.8,
+            "overall_quality": 0.9,
+            "passed": true,
+            "rejection_reasons": []
+        },
+        {
+            "path": "D:\\studio\\tools\\vibecoding\\sample_photos\\creatives\\013A0279.JPG",
+            "blur_score": 35.728723570665004,
+            "fft_energy": 0.0,
+            "brisque_score": 40.0,
+            "niqe_score": 5.0,
+            "has_faces": false,
+            "blink_detected": false,
+            "expression_score": 0.8,
+            "overall_quality": 0.4,
+            "passed": false,
+            "rejection_reasons": [
+                "blurry"
+            ]
+        },
+        {
+            "path": "D:\\studio\\tools\\vibecoding\\sample_photos\\creatives\\013A0280.JPG",
+            "blur_score": 57.04309699046356,
+            "fft_energy": 0.0,
+            "brisque_score": 40.0,
+            "niqe_score": 5.0,
+            "has_faces": false,
+            "blink_detected": false,
+            "expression_score": 0.8,
+            "overall_quality": 0.4,
+            "passed": false,
+            "rejection_reasons": [
+                "blurry"
+            ]
+        },
+        {
+            "path": "D:\\studio\\tools\\vibecoding\\sample_photos\\creatives\\013A0284.JPG",
+            "blur_score": 140.4438827074071,
+            "fft_energy": 0.0,
+            "brisque_score": 40.0,
+            "niqe_score": 5.0,
+            "has_faces": false,
+            "blink_detected": false,
+            "expression_score": 0.8,
+            "overall_quality": 0.9,
+            "passed": true,
+            "rejection_reasons": []
+        },
+        {
+            "path": "D:\\studio\\tools\\vibecoding\\sample_photos\\creatives\\013A0285.JPG",
+            "blur_score": 157.74942098796708,
+            "fft_energy": 0.0,
+            "brisque_score": 40.0,
+            "niqe_score": 5.0,
+            "has_faces": false,
+            "blink_detected": false,
+            "expression_score": 0.8,
+            "overall_quality": 0.9,
+            "passed": true,
+            "rejection_reasons": []
+        },
+        {
+            "path": "D:\\studio\\tools\\vibecoding\\sample_photos\\creatives\\013A0287.JPG",
+            "blur_score": 162.43801748511225,
+            "fft_energy": 0.0,
+            "brisque_score": 40.0,
+            "niqe_score": 5.0,
+            "has_faces": false,
+            "blink_detected": false,
+            "expression_score": 0.8,
+            "overall_quality": 0.9,
+            "passed": true,
+            "rejection_reasons": []
+        },
+        {
+            "path": "D:\\studio\\tools\\vibecoding\\sample_photos\\creatives\\013A0288.JPG",
+            "blur_score": 67.25359388892163,
+            "fft_energy": 0.0,
+            "brisque_score": 40.0,
+            "niqe_score": 5.0,
+            "has_faces": false,
+            "blink_detected": false,
+            "expression_score": 0.8,
+            "overall_quality": 0.4,
+            "passed": false,
+            "rejection_reasons": [
+                "blurry"
+            ]
+        },
+        {
+            "path": "D:\\studio\\tools\\vibecoding\\sample_photos\\creatives\\013A0289.JPG",
+            "blur_score": 137.87371945234167,
+            "fft_energy": 0.0,
+            "brisque_score": 40.0,
+            "niqe_score": 5.0,
+            "has_faces": false,
+            "blink_detected": false,
+            "expression_score": 0.8,
+            "overall_quality": 0.9,
+            "passed": true,
+            "rejection_reasons": []
+        },
+        {
+            "path": "D:\\studio\\tools\\vibecoding\\sample_photos\\creatives\\013A0290.JPG",
+            "blur_score": 230.911030617586,
+            "fft_energy": 0.0,
+            "brisque_score": 40.0,
+            "niqe_score": 5.0,
+            "has_faces": false,
+            "blink_detected": false,
+            "expression_score": 0.8,
+            "overall_quality": 0.9,
+            "passed": true,
+            "rejection_reasons": []
+        },
+        {
+            "path": "D:\\studio\\tools\\vibecoding\\sample_photos\\creatives\\013A0315.JPG",
+            "blur_score": 87.95912400974493,
+            "fft_energy": 0.0,
+            "brisque_score": 40.0,
+            "niqe_score": 5.0,
+            "has_faces": false,
+            "blink_detected": false,
+            "expression_score": 0.8,
+            "overall_quality": 0.4,
+            "passed": false,
+            "rejection_reasons": [
+                "blurry"
+            ]
+        },
+        {
+            "path": "D:\\studio\\tools\\vibecoding\\sample_photos\\creatives\\013A0316.JPG",
+            "blur_score": 77.74474071925749,
+            "fft_energy": 0.0,
+            "brisque_score": 40.0,
+            "niqe_score": 5.0,
+            "has_faces": false,
+            "blink_detected": false,
+            "expression_score": 0.8,
+            "overall_quality": 0.4,
+            "passed": false,
+            "rejection_reasons": [
+                "blurry"
+            ]
+        },
+        {
+            "path": "D:\\studio\\tools\\vibecoding\\sample_photos\\creatives\\013A0317.JPG",
+            "blur_score": 159.22898056165732,
+            "fft_energy": 0.0,
+            "brisque_score": 40.0,
+            "niqe_score": 5.0,
+            "has_faces": false,
+            "blink_detected": false,
+            "expression_score": 0.8,
+            "overall_quality": 0.9,
+            "passed": true,
+            "rejection_reasons": []
+        },
+        {
+            "path": "D:\\studio\\tools\\vibecoding\\sample_photos\\creatives\\013A0322.JPG",
+            "blur_score": 63.644132735569094,
+            "fft_energy": 0.0,
+            "brisque_score": 40.0,
+            "niqe_score": 5.0,
+            "has_faces": false,
+            "blink_detected": false,
+            "expression_score": 0.8,
+            "overall_quality": 0.4,
+            "passed": false,
+            "rejection_reasons": [
+                "blurry"
+            ]
+        }
+    ]
+}

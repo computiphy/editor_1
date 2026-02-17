@@ -1,0 +1,12 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.11.0, pytest-9.0.2, pluggy-1.6.0 -- C:\Users\joylo\AppData\Local\Programs\Python\Python311\python.exe
+cachedir: .pytest_cache
+rootdir: D:\studio\tools\vibecoding\editor_1\wedding_ai_pipeline
+configfile: pyproject.toml
+plugins: mock-3.15.1
+collecting ... collected 2 items
+
+tests/test_config.py::test_config_loads_valid_yaml PASSED                [ 50%]
+tests/test_config.py::test_config_rejects_invalid_yaml PASSED            [100%]
+
+============================== 2 passed in 0.24s ==============================

@@ -1,0 +1,3 @@
+pipeline:
+  name: "missing_fields"
+  # input_dir missing

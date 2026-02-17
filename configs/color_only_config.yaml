@@ -1,0 +1,44 @@
+pipeline:
+  name: "Creatives_Color_Grade_Run2"
+  input_dir: "D:/studio/tools/vibecoding/sample_photos/creatives"
+  input_formats: ["raw", "jpg", "jpeg"]
+  output_base: "D:/studio/tools/vibecoding/editor_1/wedding_ai_pipeline/output"
+  gpu_backend: "auto"
+  workers: 2
+  metadata_required: false
+
+culling:
+  enabled: false
+  blur_threshold: 100.0
+  duplicate_threshold: 5
+  quality_threshold: 70.0
+
+restoration:
+  enabled: false
+  auto_route: true
+  primary_model: "nafnet"
+  face_restore: true
+  tiling:
+    enabled: true
+    tile_size: 512
+    overlap: 64
+
+color_grading:
+  enabled: true
+  method: "lab_statistical"
+  reference_image: "D:/studio/tools/vibecoding/editor_1/wedding_ai_pipeline/assets/reference_style.png"
+
+cropping:
+  enabled: false
+  ratios: ["1:1", "9:16"]
+  detector: "rtdetr"
+
+watermark:
+  enabled: false
+  path: "assets/watermark.png"
+  position: "auto"
+  opacity: 0.5
+
+narrative:
+  enabled: false
+  clustering_eps: 0.5
