@@ -187,7 +187,139 @@ PRESETS: Dict[str, StylePreset] = {
         vignette_strength=0.3, vignette_radius=0.7,
         grain_amount=15, grain_size=2.5
     ),
-}
+    "moody_forest": StylePreset(
+        name="moody_forest",
+        temperature_shift=-5, tint_shift=2, exposure_offset=-0.2,
+        contrast=1.10, saturation_scale=0.85, vibrance_scale=1.0,
+        tone_curve=ToneCurve(shadows_lift=5, highlights_roll=-15, midtone_gamma=0.90),
+        split_tone=SplitTone(shadow_hue=210, shadow_saturation=10),
+        per_channel={
+            "red": _ch(), "orange": _ch(s=5, l=5),
+            "yellow": _ch(h=-10, s=-20, l=-5), "green": _ch(h=10, s=-40, l=-15),
+            "blue": _ch(h=-5, s=-10, l=-10), "purple": _ch(s=-20)
+        },
+        vignette_strength=0.4, vignette_radius=0.6,
+        grain_amount=5, grain_size=1.2
+    ),
+    "golden_hour_portrait": StylePreset(
+        name="golden_hour_portrait",
+        temperature_shift=8, tint_shift=1, exposure_offset=0.1,
+        contrast=1.0, saturation_scale=1.1, vibrance_scale=1.1,
+        tone_curve=ToneCurve(shadows_lift=10, highlights_roll=-5, midtone_gamma=1.05),
+        split_tone=SplitTone(shadow_hue=40, shadow_saturation=15, highlight_hue=50, highlight_saturation=10),
+        per_channel={
+            "red": _ch(h=5, s=5), "orange": _ch(s=10, l=5),
+            "yellow": _ch(h=-5, s=15), "green": _ch(h=-10, s=5),
+            "blue": _ch(h=-10, s=-15, l=5), "purple": _ch()
+        },
+        vignette_strength=0.2, vignette_radius=0.9
+    ),
+    "urban_cyberpunk": StylePreset(
+        name="urban_cyberpunk",
+        temperature_shift=-10, tint_shift=15, contrast=1.20,
+        saturation_scale=1.2, vibrance_scale=1.3, exposure_offset=0.0,
+        tone_curve=ToneCurve(shadows_lift=5, highlights_roll=0, midtone_gamma=0.95),
+        split_tone=SplitTone(shadow_hue=280, shadow_saturation=30, highlight_hue=180, highlight_saturation=20),
+        per_channel={
+            "red": _ch(h=10, s=10), "orange": _ch(l=10),
+            "yellow": _ch(h=-20, s=-10), "green": _ch(h=40, s=-20),
+            "blue": _ch(h=-10, s=20, l=10), "purple": _ch(h=10, s=25, l=5)
+        },
+        vignette_strength=0.4, vignette_radius=0.6
+    ),
+    "vintage_painterly": StylePreset(
+        name="vintage_painterly",
+        temperature_shift=4, tint_shift=5, exposure_offset=-0.1,
+        contrast=0.95, saturation_scale=0.85, vibrance_scale=0.9,
+        tone_curve=ToneCurve(shadows_lift=25, highlights_roll=-20, midtone_gamma=1.0),
+        split_tone=SplitTone(shadow_hue=210, shadow_saturation=8, highlight_hue=45, highlight_saturation=15),
+        per_channel={
+            "red": _ch(s=-10, l=-5), "orange": _ch(h=-2, s=-5),
+            "yellow": _ch(h=-5, s=-10, l=-5), "green": _ch(h=-10, s=-30, l=-10),
+            "blue": _ch(h=-5, s=-20, l=-10), "purple": _ch(s=-30)
+        },
+        vignette_strength=0.2, vignette_radius=0.5,
+        grain_amount=15, grain_size=2.0
+    ),
+    "high_fashion": StylePreset(
+        name="high_fashion",
+        exposure_offset=0.2, contrast=1.15,
+        saturation_scale=1.05, vibrance_scale=1.1,
+        tone_curve=ToneCurve(shadows_lift=0, highlights_roll=-5, midtone_gamma=1.0),
+        split_tone=SplitTone(shadow_hue=240, shadow_saturation=10),
+        per_channel={
+            "red": _ch(s=15), "orange": _ch(s=5, l=5),
+            "yellow": _ch(), "green": _ch(h=20, s=10, l=-5),
+            "blue": _ch(s=10), "purple": _ch(h=10, s=15)
+        }
+    ),
+    "sepia_monochrome": StylePreset(
+        name="sepia_monochrome",
+        temperature_shift=10, contrast=1.10,
+        saturation_scale=0.0, vibrance_scale=0.0,
+        tone_curve=ToneCurve(shadows_lift=10, highlights_roll=-10, midtone_gamma=1.0),
+        split_tone=SplitTone(shadow_hue=30, shadow_saturation=30, highlight_hue=45, highlight_saturation=20),
+        per_channel={
+            "red": _ch(l=10), "orange": _ch(l=15),
+            "yellow": _ch(l=5), "green": _ch(l=-10),
+            "blue": _ch(l=-20), "purple": _ch()
+        },
+        vignette_strength=0.3, vignette_radius=0.7,
+        grain_amount=10, grain_size=1.2
+    ),
+    "vibrant_landscape": StylePreset(
+        name="vibrant_landscape",
+        contrast=1.15, saturation_scale=1.2, vibrance_scale=1.25,
+        tone_curve=ToneCurve(highlights_roll=-15, midtone_gamma=1.0),
+        per_channel={
+            "red": _ch(s=10), "orange": _ch(s=10),
+            "yellow": _ch(h=-5, s=15, l=5), "green": _ch(h=5, s=10, l=-5),
+            "blue": _ch(h=-5, s=15, l=-10), "purple": _ch()
+        },
+        vignette_strength=0.1, vignette_radius=0.8
+    ),
+    "lavender_dream": StylePreset(
+        name="lavender_dream",
+        temperature_shift=-2, tint_shift=10, exposure_offset=0.25,
+        contrast=0.90, saturation_scale=0.80, vibrance_scale=1.0,
+        tone_curve=ToneCurve(shadows_lift=20, highlights_roll=-10, midtone_gamma=1.05),
+        split_tone=SplitTone(shadow_hue=260, shadow_saturation=15, highlight_hue=330, highlight_saturation=10),
+        per_channel={
+            "red": _ch(h=10, s=-10, l=10), "orange": _ch(l=5),
+            "yellow": _ch(h=-10, s=-20, l=10), "green": _ch(h=20, s=-40, l=10),
+            "blue": _ch(h=10, s=-10, l=10), "purple": _ch(h=5, s=5, l=5)
+        },
+        vignette_strength=0.1, vignette_radius=0.8,
+        grain_amount=5, grain_size=1.0
+    ),
+    "bleach_bypass": StylePreset(
+        name="bleach_bypass",
+        temperature_shift=-2, exposure_offset=-0.1,
+        contrast=1.35, saturation_scale=0.40, vibrance_scale=0.50,
+        tone_curve=ToneCurve(shadows_lift=0, highlights_roll=10, midtone_gamma=1.0),
+        split_tone=SplitTone(shadow_hue=190, shadow_saturation=10, highlight_hue=30, highlight_saturation=10),
+        per_channel={
+            "red": _ch(s=10, l=-10), "orange": _ch(s=20),
+            "yellow": _ch(s=-50), "green": _ch(s=-60, l=-20),
+            "blue": _ch(s=-50, l=-10), "purple": _ch(s=-50)
+        },
+        vignette_strength=0.5, vignette_radius=0.6,
+        grain_amount=20, grain_size=1.5
+    ),
+    "dark_academic": StylePreset(
+        name="dark_academic",
+        temperature_shift=2, exposure_offset=-0.3,
+        contrast=1.05, saturation_scale=0.90, vibrance_scale=1.0,
+        tone_curve=ToneCurve(shadows_lift=10, highlights_roll=-20, midtone_gamma=0.95),
+        split_tone=SplitTone(shadow_hue=140, shadow_saturation=15, highlight_hue=35, highlight_saturation=10),
+        per_channel={
+            "red": _ch(s=-10, l=-5), "orange": _ch(h=-5, s=5),
+            "yellow": _ch(h=-15, s=-20, l=-10), "green": _ch(h=10, s=-10, l=-10),
+            "blue": _ch(h=-10, s=-40, l=-20), "purple": _ch(s=-40, l=-10)
+        },
+        vignette_strength=0.3, vignette_radius=0.7,
+        grain_amount=5, grain_size=1.0
+    ),}
 
 
 # ────────────────────────────────────────────────────────────────

@@ -78,8 +78,14 @@ def test_all_presets_exist():
     """
     Rationale: Ensures all 9 presets defined in color_theory.md are registered.
     """
-    expected = ["natural", "cinematic", "pastel", "moody", "golden_hour",
-                "film_kodak", "film_fuji", "vibrant", "black_and_white"]
+    expected = [
+        "natural", "cinematic", "pastel", "moody", "golden_hour",
+        "film_kodak", "film_fuji", "vibrant", "black_and_white",
+        "moody_forest", "golden_hour_portrait", "urban_cyberpunk",
+        "vintage_painterly", "high_fashion", "sepia_monochrome",
+        "vibrant_landscape", "lavender_dream", "bleach_bypass",
+        "dark_academic"
+    ]
     for name in expected:
         assert name in PRESETS, f"Missing preset: {name}"
 

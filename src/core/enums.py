@@ -35,6 +35,17 @@ class ColorStyle(Enum):
     FILM_FUJI = "film_fuji"
     VIBRANT = "vibrant"
     BLACK_AND_WHITE = "black_and_white"
+    # New Presets
+    MOODY_FOREST = "moody_forest"
+    GOLDEN_HOUR_PORTRAIT = "golden_hour_portrait"
+    URBAN_CYBERPUNK = "urban_cyberpunk"
+    VINTAGE_PAINTERLY = "vintage_painterly"
+    HIGH_FASHION = "high_fashion"
+    SEPIA_MONOCHROME = "sepia_monochrome"
+    VIBRANT_LANDSCAPE = "vibrant_landscape"
+    LAVENDER_DREAM = "lavender_dream"
+    BLEACH_BYPASS = "bleach_bypass"
+    DARK_ACADEMIC = "dark_academic"
 
 class CropRatio(Enum):
     SQUARE = "1:1"

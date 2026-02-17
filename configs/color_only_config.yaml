@@ -1,5 +1,5 @@
 pipeline:
-  name: "Creatives_Color_Grade_Run"
+  name: "Creatives_Color_Grade_Run_sepia_monochrome"
   input_dir: "D:/studio/tools/vibecoding/sample_photos/creatives"
   input_formats: ["raw", "jpg", "jpeg"]
   output_base: "D:/studio/tools/vibecoding/editor_1/wedding_ai_pipeline/output"
@@ -26,7 +26,7 @@ restoration:
 color_grading:
   enabled: true
   method: "lab_statistical"
-  style: "cinematic"               # OPTIONS: natural, cinematic, pastel, moody,
+  style: "sepia_monochrome"               # OPTIONS: natural, cinematic, pastel, moody,
                                     #          golden_hour, film_kodak, film_fuji,
                                     #          vibrant, black_and_white
   strength: 1.0                     # 0.0 = no effect, 1.0 = full, 1.5 = max
