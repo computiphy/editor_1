@@ -1,70 +1,69 @@
 ﻿Loading config from configs/color_only_config.yaml...
 Starting pipeline: Creatives_Color_Grade_Run
+    Color Style: cinematic (strength=1.0)
 --- Stage 1: Culling Disabled (Passing all 22 images) ---
 --- Stage 2: Processing 22 images ---
-Warning: Reference image not found at assets/reference_style.jpg
 python : 
 At line:1 char:22
 + ... ONPATH="."; python 
-main.py --config configs/co
-lor_only_config.yaml 2> ...
-+                 ~~~~~~~~~
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-~~~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo         
-     : NotSpecified: (:St  
-  ring) [], RemoteExcept   
- ion
-    + FullyQualifiedErrorI 
-   d : NativeCommandError
+main.py --config configs/colo
+r_only_config.yaml 2> ...
++                 ~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~
+    + CategoryInfo           
+   : NotSpecified: (:String  
+  ) [], RemoteException
+    + FullyQualifiedErrorId  
+   : NativeCommandError
  
   0%|          | 0/22 
 [00:00<?, ?it/s]
   5%|4         | 1/22 
-[00:00<00:09,  2.19it/s]
+[00:10<03:39, 10.44s/it]
   9%|9         | 2/22 
-[00:00<00:08,  2.26it/s]
+[00:20<03:19,  9.97s/it]
  14%|#3        | 3/22 
-[00:01<00:08,  2.37it/s]
+[00:29<03:04,  9.71s/it]
  18%|#8        | 4/22 
-[00:01<00:07,  2.48it/s]
+[00:38<02:51,  9.50s/it]
  23%|##2       | 5/22 
-[00:02<00:06,  2.60it/s]
+[00:48<02:40,  9.47s/it]
  27%|##7       | 6/22 
-[00:02<00:06,  2.47it/s]
+[00:57<02:30,  9.41s/it]
  32%|###1      | 7/22 
-[00:03<00:06,  2.21it/s]
+[01:06<02:20,  9.39s/it]
  36%|###6      | 8/22 
-[00:03<00:05,  2.36it/s]
+[01:15<02:10,  9.35s/it]
  41%|####      | 9/22 
-[00:03<00:05,  2.50it/s]
+[01:25<02:01,  9.32s/it]
  45%|####5     | 10/22 
-[00:04<00:04,  2.57it/s]
+[01:34<01:51,  9.31s/it]
  50%|#####     | 11/22 
-[00:04<00:04,  2.66it/s]
+[01:43<01:41,  9.19s/it]
  55%|#####4    | 12/22 
-[00:04<00:03,  2.70it/s]
+[01:52<01:32,  9.20s/it]
  59%|#####9    | 13/22 
-[00:05<00:03,  2.72it/s]
+[02:01<01:22,  9.21s/it]
  64%|######3   | 14/22 
-[00:05<00:02,  2.77it/s]
+[02:11<01:14,  9.27s/it]
  68%|######8   | 15/22 
-[00:05<00:02,  2.80it/s]
+[02:20<01:04,  9.24s/it]
  73%|#######2  | 16/22 
-[00:06<00:02,  2.81it/s]
+[02:29<00:55,  9.23s/it]
  77%|#######7  | 17/22 
-[00:06<00:01,  2.80it/s]
+[02:39<00:46,  9.28s/it]
  82%|########1 | 18/22 
-[00:06<00:01,  2.81it/s]
+[02:48<00:36,  9.25s/it]
  86%|########6 | 19/22 
-[00:07<00:01,  2.84it/s]
+[02:57<00:27,  9.28s/it]
  91%|######### | 20/22 
-[00:07<00:00,  2.87it/s]
+[03:06<00:18,  9.25s/it]
  95%|#########5| 21/22 
-[00:07<00:00,  2.81it/s]
+[03:16<00:09,  9.34s/it]
 100%|##########| 22/22 
-[00:08<00:00,  2.84it/s]
+[03:25<00:00,  9.35s/it]
 100%|##########| 22/22 
-[00:08<00:00,  2.65it/s]
+[03:25<00:00,  9.35s/it]
 Summary report generated: D:\studio\tools\vibecoding\editor_1\wedding_ai_pipeline\output\Creatives_Color_Grade_Run\summary.pdf
-Pipeline finished in 8.39 seconds.
+Pipeline finished in 205.98 seconds.

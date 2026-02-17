@@ -25,6 +25,17 @@ class ColorMethod(Enum):
     LUT = "lut"
     HISTOGRAM = "histogram"
 
+class ColorStyle(Enum):
+    NATURAL = "natural"
+    CINEMATIC = "cinematic"
+    PASTEL = "pastel"
+    MOODY = "moody"
+    GOLDEN_HOUR = "golden_hour"
+    FILM_KODAK = "film_kodak"
+    FILM_FUJI = "film_fuji"
+    VIBRANT = "vibrant"
+    BLACK_AND_WHITE = "black_and_white"
+
 class CropRatio(Enum):
     SQUARE = "1:1"
     PORTRAIT = "4:5"

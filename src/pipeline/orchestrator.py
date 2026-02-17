@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Protocol, Any, Dict
+import cv2
 from src.core.models import PipelineResult
 
 class IStepEngine(Protocol):
@@ -70,7 +71,11 @@ class WeddingPipeline:
         grading_engine = None
         if self.config.color_grading.enabled:
             from src.color.engine import ColorGradingEngine
-            grading_engine = ColorGradingEngine()
+            grading_engine = ColorGradingEngine(
+                style=self.config.color_grading.style,
+                strength=self.config.color_grading.strength
+            )
+            print(f"    Color Style: {self.config.color_grading.style} (strength={self.config.color_grading.strength})")
 
         # 2. Sequential Execution
         scores = []
@@ -87,7 +92,6 @@ class WeddingPipeline:
             passed_images = [s for s in scores if s.passed]
         else:
             print(f"--- Stage 1: Culling Disabled (Passing all {total_input} images) ---")
-            # Create dummy passing scores for all images
             from src.core.models import ImageScore
             for p in photo_paths:
                 passed_images.append(ImageScore(
@@ -102,7 +106,7 @@ class WeddingPipeline:
                     overall_quality=1.0,
                     passed=True
                 ))
-                scores = passed_images # Reporting needs scores list
+                scores = passed_images
 
         # 3. Restoration & Grading & Saving
         total_restored = 0
@@ -127,7 +131,6 @@ class WeddingPipeline:
 
         for s in tqdm(passed_images):
             try:
-                # Load
                 from src.utils.image_io import load_image, save_image
                 img = load_image(str(s.path))
                 
@@ -142,9 +145,15 @@ class WeddingPipeline:
                 
                 # Color Grading
                 if self.config.color_grading.enabled and grading_engine:
+                    # Step 1: Apply style preset (cinematic, pastel, etc.)
+                    img = grading_engine.apply_style(img)
+                    
+                    # Step 2: Optional reference transfer blend
                     if reference_img is not None:
-                        img = grading_engine.apply_transfer(img, reference_img)
-                    pass # Only supports reference transfer for now
+                        ref_result = grading_engine.apply_transfer(img, reference_img)
+                        # Blend at 30% to add reference vibe without overpowering preset
+                        img = cv2.addWeighted(img, 0.7, ref_result, 0.3, 0)
+                    
                     total_graded += 1
                 
                 # Save

@@ -46,7 +46,10 @@ class NarrativeConfig(BaseModel):
 class ColorGradingConfig(BaseModel):
     enabled: bool = False
     method: str = "lab_statistical"
+    style: str = "natural"
     reference_image: Optional[str] = None
+    strength: float = 1.0
+    segmentation_enabled: bool = False
 
 class ConfigSchema(BaseModel):
     pipeline: PipelineConfig
