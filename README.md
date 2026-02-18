@@ -169,7 +169,10 @@ restoration:
 **Module:** `src/color/engine.py`
 **What it does:** Applies professional color grading presets to images. The system implements a complete digital darkroom with per-channel HSL adjustments, tone curves, split toning, vignette, and film grain emulation.
 
-**This is the most feature-rich module in the pipeline.** It is guided by the comprehensive `color_theory.md` reference document.
+**Methodology: Parametric Engine with Generative 1D LUTs**
+Unlike static `.cube` LUTs, this is a **parametric engine**. It uses the instructions in the YAML (the "Preset") to build mathematical transformations on the fly. 
+- **Generative 1D LUTs:** For stages like `Tone Curve` and `Contrast`, the engine builds a 256-entry Lookup Table and applies it via `cv2.LUT()`. This provides O(pixels) performance while maintaining the flexibility of a preset.
+- **Hue-Targeted Masking:** Per-channel HSL adjustments are applied by isolating hue ranges in HSV space, allowing "Green taming" or "Skin protection" without affecting other colors.
 
 #### Processing Pipeline (in order):
 
@@ -422,7 +425,7 @@ See [`color_theory.md`](color_theory.md) for the full specification of all 19 pr
 | | ImageHash | 4.x | Perceptual hashing for dedup |
 | | scikit-learn | 1.x | DBSCAN clustering |
 | **Restoration** | PyTorch | 2.x | NAFNet / GFPGAN inference |
-| **Color Grading** | OpenCV + NumPy | — | HSV/LAB manipulation, LUTs |
+| **Color Grading** | OpenCV + NumPy | — | HSV/LAB, Generative 1D LUTs |
 | **Background Removal** | rembg + BiRefNet | 2.x | Portrait segmentation |
 | **Narrative** | OpenCLIP | — | CLIP embeddings for scene grouping |
 | **Reporting** | ReportLab | 4.x | PDF generation |
