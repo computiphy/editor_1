@@ -51,11 +51,16 @@ class ColorGradingConfig(BaseModel):
     strength: float = 1.0
     segmentation_enabled: bool = False
 
+class BackgroundRemovalConfig(BaseModel):
+    enabled: bool = False
+    model: str = "u2net"
+
 class ConfigSchema(BaseModel):
     pipeline: PipelineConfig
     culling: CullingConfig = Field(default_factory=CullingConfig)
     restoration: RestorationConfig = Field(default_factory=RestorationConfig)
     color_grading: ColorGradingConfig = Field(default_factory=ColorGradingConfig)
+    background_removal: BackgroundRemovalConfig = Field(default_factory=BackgroundRemovalConfig)
     cropping: CroppingConfig = Field(default_factory=CroppingConfig)
     watermark: WatermarkConfig = Field(default_factory=WatermarkConfig)
     narrative: NarrativeConfig = Field(default_factory=NarrativeConfig)

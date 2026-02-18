@@ -120,6 +120,12 @@ class WeddingPipeline:
 
         print(f"--- Stage 2: Processing {len(passed_images)} images ---")
         
+        # Initialize Background Remover
+        bg_remover = None
+        if self.config.background_removal.enabled:
+            from src.segmentation.background_remover import BackgroundRemover
+            bg_remover = BackgroundRemover(model=self.config.background_removal.model)
+
         # Load reference image for grading if needed
         reference_img = None
         if self.config.color_grading.enabled and self.config.color_grading.reference_image:
@@ -129,9 +135,18 @@ class WeddingPipeline:
              else:
                  print(f"Warning: Reference image not found at {self.config.color_grading.reference_image}")
 
+        # Create cutouts dir if bg removal is enabled
+        cutouts_dir = None
+        if self.config.background_removal.enabled:
+            cutouts_dir = output_dir / "cutouts"
+            cutouts_dir.mkdir(exist_ok=True)
+
+        total_cutouts = 0
+
         for s in tqdm(passed_images):
             try:
                 from src.utils.image_io import load_image, save_image
+                from PIL import Image as PILImage
                 img = load_image(str(s.path))
                 
                 # Restoration
@@ -156,8 +171,21 @@ class WeddingPipeline:
                     
                     total_graded += 1
                 
-                # Save
+                # Save graded image to final/
                 save_image(img, str(final_dir / s.path.name))
+
+                # Background Removal (on the already-graded image)
+                if self.config.background_removal.enabled and bg_remover:
+                    try:
+                        rgba = bg_remover.remove_background(img)
+                        # Save as PNG to preserve transparency
+                        cutout_name = Path(s.path).stem + ".png"
+                        pil_rgba = PILImage.fromarray(rgba)
+                        pil_rgba.save(str(cutouts_dir / cutout_name), "PNG")
+                        total_cutouts += 1
+                    except Exception as bg_err:
+                        print(f"Error removing background for {s.path}: {bg_err}")
+                
             except Exception as e:
                 print(f"Error processing {s.path}: {e}")
 
@@ -171,6 +199,7 @@ class WeddingPipeline:
                 "total_passed": len(passed_images),
                 "total_restored": total_restored,
                 "total_graded": total_graded,
+                "total_cutouts": total_cutouts,
                 "elapsed_seconds": time.time() - start_time
             },
             "images": [asdict(s) for s in scores]
@@ -191,7 +220,7 @@ class WeddingPipeline:
             total_input=total_input,
             total_culled=total_input - len(passed_images),
             total_restored=total_restored,
-            total_graded=0,
+            total_graded=total_graded,
             album_pages=0,
             elapsed_seconds=time.time() - start_time,
             errors=[]

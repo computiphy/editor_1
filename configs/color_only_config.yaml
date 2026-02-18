@@ -1,5 +1,5 @@
 pipeline:
-  name: "Creatives_Color_Grade_Run_sepia_monochrome"
+  name: "Creatives_ColorOnly"
   input_dir: "D:/studio/tools/vibecoding/sample_photos/creatives"
   input_formats: ["raw", "jpg", "jpeg"]
   output_base: "D:/studio/tools/vibecoding/editor_1/wedding_ai_pipeline/output"
@@ -26,12 +26,16 @@ restoration:
 color_grading:
   enabled: true
   method: "lab_statistical"
-  style: "sepia_monochrome"               # OPTIONS: natural, cinematic, pastel, moody,
+  style: "film_kodak"               # OPTIONS: natural, cinematic, pastel, moody,
                                     #          golden_hour, film_kodak, film_fuji,
                                     #          vibrant, black_and_white
   strength: 1.0                     # 0.0 = no effect, 1.0 = full, 1.5 = max
   reference_image: "D:/studio/tools/vibecoding/editor_1/wedding_ai_pipeline/assets/reference_style.png"
-  segmentation_enabled: false       # Set true to enable SAM-based local grading
+  segmentation_enabled: true       # Set true to enable SAM-based local grading
+
+background_removal:
+  enabled: false                     # Set true to generate cutouts (PNG with transparent bg)
+  model: "birefnet-portrait"        # BEST for weddings. Options: birefnet-portrait, birefnet-massive, bria-rmbg, u2net
 
 cropping:
   enabled: false
