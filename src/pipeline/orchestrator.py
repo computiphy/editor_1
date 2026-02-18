@@ -169,6 +169,14 @@ class WeddingPipeline:
                         # Blend at 30% to add reference vibe without overpowering preset
                         img = cv2.addWeighted(img, 0.7, ref_result, 0.3, 0)
                     
+                    # Step 3: Semantic per-region overrides (skin, sky, vegetation, etc.)
+                    if self.config.color_grading.segmentation_enabled:
+                        from src.segmentation.semantic_segmenter import SemanticSegmenter
+                        if not hasattr(self, '_segmenter'):
+                            self._segmenter = SemanticSegmenter()
+                        seg_result = self._segmenter.segment(img)
+                        img = grading_engine.apply_semantic_grading(img, seg_result.as_dict())
+                    
                     total_graded += 1
                 
                 # Save graded image to final/

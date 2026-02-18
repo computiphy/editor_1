@@ -641,3 +641,236 @@ class ColorGradingEngine:
         means = np.array([l.mean(), a.mean(), b.mean()])
         stds = np.array([max(l.std(), 1e-5), max(a.std(), 1e-5), max(b.std(), 1e-5)])
         return means, stds
+
+    # ── Semantic Grading (Per-Region Overrides) ─────────────────
+
+    def apply_semantic_grading(self, image: np.ndarray,
+                                masks: dict) -> np.ndarray:
+        """
+        Apply per-region adjustment overrides on top of global preset.
+        Implements color_theory.md §6.2.
+
+        Args:
+            image: RGB uint8 image (already globally graded).
+            masks: Dict of region name → float32 mask (0.0–1.0).
+                   Keys: 'skin', 'sky', 'vegetation', 'dress_white', 'suit_dark'
+
+        Returns:
+            RGB uint8 image with per-region overrides applied.
+        """
+        img = image.copy().astype(np.float32)
+
+        # Apply overrides in priority order (lowest priority first,
+        # highest last so they "win" in overlap zones)
+        if "vegetation" in masks and masks["vegetation"].max() > 0.01:
+            img = self._override_vegetation(img, masks["vegetation"])
+
+        if "suit_dark" in masks and masks["suit_dark"].max() > 0.01:
+            img = self._override_dark_suit(img, masks["suit_dark"])
+
+        if "dress_white" in masks and masks["dress_white"].max() > 0.01:
+            img = self._override_white_dress(img, masks["dress_white"])
+
+        if "sky" in masks and masks["sky"].max() > 0.01:
+            img = self._override_sky(img, masks["sky"])
+
+        if "skin" in masks and masks["skin"].max() > 0.01:
+            img = self._override_skin(img, masks["skin"])
+
+        return np.clip(img, 0, 255).astype(np.uint8)
+
+    def _blend(self, base: np.ndarray, adjusted: np.ndarray,
+               mask: np.ndarray) -> np.ndarray:
+        """Blend adjusted image into base using a soft mask."""
+        m = mask[:, :, np.newaxis]  # (H, W, 1) for broadcasting
+        return base * (1.0 - m) + adjusted * m
+
+    # ── Skin Protection Layer (color_theory.md §6.2 Class 0) ────
+
+    def _override_skin(self, img: np.ndarray, mask: np.ndarray) -> np.ndarray:
+        """
+        Skin protection: hue clamp [15°,40°], saturation cap,
+        luminance boost, local warmth.
+        """
+        adjusted = img.copy()
+        img_u8 = np.clip(adjusted, 0, 255).astype(np.uint8)
+        hsv = cv2.cvtColor(img_u8, cv2.COLOR_RGB2HSV).astype(np.float32)
+
+        # Hue clamp: force skin hue into healthy 15°–40° range
+        # OpenCV hue scale: 15°→7.5, 40°→20 (divide 360° scale by 2)
+        h_low, h_high = 7.5, 20.0
+        skin_pixels = mask > 0.3
+        h = hsv[:, :, 0]
+        # Clamp hue for skin pixels
+        h[skin_pixels & (h < h_low)] = h_low
+        h[skin_pixels & (h > h_high)] = h_high
+
+        # Saturation cap: prevent over-saturated skin
+        # OpenCV sat scale: 65% of 255 ≈ 166
+        sat_limit = 166.0
+        s = hsv[:, :, 1]
+        s[skin_pixels & (s > sat_limit)] = sat_limit
+
+        # Luminance boost: +5%
+        v = hsv[:, :, 2]
+        v[skin_pixels] = np.clip(v[skin_pixels] * 1.05, 0, 255)
+
+        hsv[:, :, 0] = h
+        hsv[:, :, 1] = s
+        hsv[:, :, 2] = v
+
+        adjusted = cv2.cvtColor(hsv.astype(np.uint8), cv2.COLOR_HSV2RGB).astype(np.float32)
+
+        # Local warmth: +3K temperature (add red, reduce blue)
+        warmth = 3.0 * 2.5  # same scale as _adjust_temperature
+        adjusted[:, :, 0] = adjusted[:, :, 0] + warmth
+        adjusted[:, :, 2] = adjusted[:, :, 2] - warmth * 0.7
+
+        return self._blend(img, adjusted, mask)
+
+    # ── Sky Enhancement (color_theory.md §6.2 Class 1) ──────────
+
+    def _override_sky(self, img: np.ndarray, mask: np.ndarray) -> np.ndarray:
+        """
+        Sky enhancement: darken highlights, boost saturation,
+        push hue towards teal-azure, gradient-aware.
+        """
+        adjusted = img.copy()
+        img_u8 = np.clip(adjusted, 0, 255).astype(np.uint8)
+        hsv = cv2.cvtColor(img_u8, cv2.COLOR_RGB2HSV).astype(np.float32)
+
+        sky_pixels = mask > 0.3
+
+        # Luminance offset: -10%
+        v = hsv[:, :, 2]
+        v[sky_pixels] = np.clip(v[sky_pixels] * 0.90, 0, 255)
+
+        # Saturation boost: +10%
+        s = hsv[:, :, 1]
+        s[sky_pixels] = np.clip(s[sky_pixels] * 1.10, 0, 255)
+
+        # Hue shift towards 195° (teal-azure) → OpenCV scale ≈ 97
+        # Gently push existing blue hues towards 97
+        h = hsv[:, :, 0]
+        target_hue = 97.0
+        hue_diff = target_hue - h[sky_pixels]
+        h[sky_pixels] = h[sky_pixels] + hue_diff * 0.3  # 30% shift
+
+        hsv[:, :, 0] = np.clip(h, 0, 180)
+        hsv[:, :, 1] = s
+        hsv[:, :, 2] = v
+
+        adjusted = cv2.cvtColor(hsv.astype(np.uint8), cv2.COLOR_HSV2RGB).astype(np.float32)
+
+        # Gradient-aware: apply more at top, less at bottom
+        height = mask.shape[0]
+        gradient = np.linspace(1.0, 0.5, height).reshape(-1, 1)
+        gradient = np.broadcast_to(gradient, mask.shape).astype(np.float32)
+        effective_mask = mask * gradient
+
+        return self._blend(img, adjusted, effective_mask)
+
+    # ── Vegetation Taming (color_theory.md §6.2 Class 2) ────────
+
+    def _override_vegetation(self, img: np.ndarray, mask: np.ndarray) -> np.ndarray:
+        """
+        Vegetation taming: shift yellow-green → emerald, desaturate,
+        darken slightly.
+        """
+        adjusted = img.copy()
+        img_u8 = np.clip(adjusted, 0, 255).astype(np.uint8)
+        hsv = cv2.cvtColor(img_u8, cv2.COLOR_RGB2HSV).astype(np.float32)
+
+        veg_pixels = mask > 0.3
+
+        # Hue shift: +15° towards emerald (OpenCV scale: +7.5)
+        h = hsv[:, :, 0]
+        h[veg_pixels] = np.clip(h[veg_pixels] + 7.5, 0, 180)
+
+        # Saturation offset: -20%
+        s = hsv[:, :, 1]
+        s[veg_pixels] = np.clip(s[veg_pixels] * 0.80, 0, 255)
+
+        # Luminance offset: -8%
+        v = hsv[:, :, 2]
+        v[veg_pixels] = np.clip(v[veg_pixels] * 0.92, 0, 255)
+
+        hsv[:, :, 0] = h
+        hsv[:, :, 1] = s
+        hsv[:, :, 2] = v
+
+        adjusted = cv2.cvtColor(hsv.astype(np.uint8), cv2.COLOR_HSV2RGB).astype(np.float32)
+        return self._blend(img, adjusted, mask)
+
+    # ── White Dress Protection (color_theory.md §6.2 Class 5) ───
+
+    def _override_white_dress(self, img: np.ndarray, mask: np.ndarray) -> np.ndarray:
+        """
+        White dress protection: clamp saturation near zero,
+        remove color cast via LAB neutralization.
+        """
+        adjusted = img.copy()
+        img_u8 = np.clip(adjusted, 0, 255).astype(np.uint8)
+
+        # Cast removal: push a,b channels towards neutral (128)
+        lab = cv2.cvtColor(img_u8, cv2.COLOR_RGB2Lab).astype(np.float32)
+        dress_pixels = mask > 0.3
+
+        # Neutralize: gently pull a and b towards 128 (neutral white)
+        a_ch = lab[:, :, 1]
+        b_ch = lab[:, :, 2]
+        a_ch[dress_pixels] = a_ch[dress_pixels] * 0.3 + 128.0 * 0.7
+        b_ch[dress_pixels] = b_ch[dress_pixels] * 0.3 + 128.0 * 0.7
+        lab[:, :, 1] = a_ch
+        lab[:, :, 2] = b_ch
+
+        # Luminance protection: don't clip highlights
+        l_ch = lab[:, :, 0]
+        l_ch[dress_pixels & (l_ch > 250)] = 250  # Recover just before clipping
+
+        adjusted = cv2.cvtColor(lab.astype(np.uint8), cv2.COLOR_Lab2RGB).astype(np.float32)
+
+        # Saturation clamp: near zero for white dress
+        hsv = cv2.cvtColor(np.clip(adjusted, 0, 255).astype(np.uint8),
+                           cv2.COLOR_RGB2HSV).astype(np.float32)
+        sat_limit = 10.0 * 255.0 / 100.0  # 10% → ~25.5
+        s = hsv[:, :, 1]
+        s[dress_pixels & (s > sat_limit)] = sat_limit
+        hsv[:, :, 1] = s
+        adjusted = cv2.cvtColor(hsv.astype(np.uint8), cv2.COLOR_HSV2RGB).astype(np.float32)
+
+        return self._blend(img, adjusted, mask)
+
+    # ── Dark Suit Enhancement (color_theory.md §6.2 Class 6) ────
+
+    def _override_dark_suit(self, img: np.ndarray, mask: np.ndarray) -> np.ndarray:
+        """
+        Dark suit enhancement: set black point L=8,
+        remove color cast, add local contrast.
+        """
+        adjusted = img.copy()
+        img_u8 = np.clip(adjusted, 0, 255).astype(np.uint8)
+        lab = cv2.cvtColor(img_u8, cv2.COLOR_RGB2Lab).astype(np.float32)
+
+        suit_pixels = mask > 0.3
+
+        # Black point: ensure L >= 8 (deep but not crushed)
+        l_ch = lab[:, :, 0]
+        l_ch[suit_pixels & (l_ch < 8)] = 8
+
+        # Cast removal: neutralize a,b channels
+        a_ch = lab[:, :, 1]
+        b_ch = lab[:, :, 2]
+        a_ch[suit_pixels] = a_ch[suit_pixels] * 0.5 + 128.0 * 0.5
+        b_ch[suit_pixels] = b_ch[suit_pixels] * 0.5 + 128.0 * 0.5
+        lab[:, :, 1] = a_ch
+        lab[:, :, 2] = b_ch
+
+        # Local contrast: +10% S-curve on L channel for fabric texture
+        l_suit = l_ch[suit_pixels]
+        mid = l_suit.mean()
+        l_ch[suit_pixels] = np.clip(mid + (l_suit - mid) * 1.10, 0, 255)
+
+        lab[:, :, 0] = l_ch
+        adjusted = cv2.cvtColor(lab.astype(np.uint8), cv2.COLOR_Lab2RGB).astype(np.float32)
+        return self._blend(img, adjusted, mask)

@@ -4,18 +4,27 @@ cachedir: .pytest_cache
 rootdir: D:\studio\tools\vibecoding\editor_1\wedding_ai_pipeline
 configfile: pyproject.toml
 plugins: mock-3.15.1
-collecting ... collected 11 items
+collecting ... collected 20 items
 
-tests/test_background_removal.py::test_background_remover_returns_rgba PASSED [  9%]
-tests/test_background_removal.py::test_background_remover_preserves_dimensions PASSED [ 18%]
-tests/test_color.py::test_color_grading_lab_statistical PASSED           [ 27%]
-tests/test_color.py::test_color_grading_cinematic_style PASSED           [ 36%]
-tests/test_color.py::test_color_grading_pastel_style PASSED              [ 45%]
-tests/test_color.py::test_color_grading_black_and_white PASSED           [ 54%]
-tests/test_color.py::test_color_grading_strength_zero PASSED             [ 63%]
-tests/test_color.py::test_all_presets_exist PASSED                       [ 72%]
-tests/test_color.py::test_all_presets_run PASSED                         [ 81%]
-tests/test_pipeline.py::test_pipeline_runs_and_returns_result PASSED     [ 90%]
+tests/test_semantic_segmentation.py::test_segmenter_returns_all_masks PASSED [  5%]
+tests/test_semantic_segmentation.py::test_segmenter_masks_are_float PASSED [ 10%]
+tests/test_semantic_segmentation.py::test_segmenter_detects_skin_tones PASSED [ 15%]
+tests/test_semantic_segmentation.py::test_segmenter_detects_sky PASSED   [ 20%]
+tests/test_semantic_segmentation.py::test_segmenter_detects_vegetation PASSED [ 25%]
+tests/test_semantic_segmentation.py::test_segmenter_skin_priority PASSED [ 30%]
+tests/test_semantic_segmentation.py::test_semantic_grading_modifies_image PASSED [ 35%]
+tests/test_semantic_segmentation.py::test_semantic_grading_skin_warms_image PASSED [ 40%]
+tests/test_semantic_segmentation.py::test_semantic_grading_vegetation_desaturates PASSED [ 45%]
+tests/test_semantic_segmentation.py::test_semantic_grading_empty_masks_no_change PASSED [ 50%]
+tests/test_semantic_segmentation.py::test_full_pipeline_with_segmentation PASSED [ 55%]
+tests/test_color.py::test_color_grading_lab_statistical PASSED           [ 60%]
+tests/test_color.py::test_color_grading_cinematic_style PASSED           [ 65%]
+tests/test_color.py::test_color_grading_pastel_style PASSED              [ 70%]
+tests/test_color.py::test_color_grading_black_and_white PASSED           [ 75%]
+tests/test_color.py::test_color_grading_strength_zero PASSED             [ 80%]
+tests/test_color.py::test_all_presets_exist PASSED                       [ 85%]
+tests/test_color.py::test_all_presets_run PASSED                         [ 90%]
+tests/test_pipeline.py::test_pipeline_runs_and_returns_result PASSED     [ 95%]
 tests/test_pipeline.py::test_pipeline_add_step PASSED                    [100%]
 
-======================== 11 passed in 99.67s (0:01:39) ========================
+============================= 20 passed in 5.04s ==============================
