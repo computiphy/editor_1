@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 from src.utils.tiling import ImageTiler
 from src.utils.gpu import get_device
 

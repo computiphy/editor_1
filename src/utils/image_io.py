@@ -1,11 +1,19 @@
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageOps
 import rawpy
 from typing import Union
 
 def load_image(path: str) -> np.ndarray:
-    """Load an image file (JPEG, PNG, TIFF) into a NumPy array."""
+    """
+    Load an image file (JPEG, PNG, TIFF) into a NumPy array.
+    Applies EXIF orientation so portrait photos are correctly rotated.
+    """
     with Image.open(path) as img:
+        # Apply EXIF orientation tag to actual pixel data.
+        # This handles cameras that store portrait photos as landscape
+        # pixels + EXIF rotation tag (orientation 6 = 90°CW, 8 = 90°CCW).
+        # After transpose, the tag is stripped so it won't be double-applied.
+        img = ImageOps.exif_transpose(img)
         return np.array(img)
 
 def save_image(data: np.ndarray, path: str):

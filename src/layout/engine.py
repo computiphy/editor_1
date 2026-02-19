@@ -206,8 +206,33 @@ class AlbumLayoutEngine:
             layout_mode = "ai"
             template_name = ai_layout.name
 
-            # Use AI cells (they have .x, .y, .w, .h — same interface)
+            # Use AI cells
             norm_cells = ai_layout.cells[:count]
+
+            # Reorder images if AI suggests optimal assignment (for aspect ratio fit)
+            if ai_layout.image_indices:
+                reordered_paths = [None] * count
+                # assigned_idx is the index into original image_paths
+                for cell_idx, assigned_idx in enumerate(ai_layout.image_indices):
+                    if cell_idx < count and assigned_idx < count:
+                        reordered_paths[cell_idx] = image_paths[assigned_idx]
+                
+                # Fill any gaps (shouldn't happen if logic is correct)
+                used_indices = set(ai_layout.image_indices)
+                unused_paths = [p for i, p in enumerate(image_paths) if i not in used_indices]
+                
+                final_paths = []
+                for p in reordered_paths:
+                    if p is None:
+                        if unused_paths:
+                            final_paths.append(unused_paths.pop(0))
+                        else:
+                            # Fallback: re-use first image if we ran out? Should not happen.
+                            final_paths.append(image_paths[0])
+                    else:
+                        final_paths.append(p)
+                
+                image_paths = final_paths
 
         else:
             # Template-based layout

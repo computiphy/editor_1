@@ -51,6 +51,7 @@ class GeneratedLayout:
     style: str
     score: float
     seed: int
+    image_indices: Optional[List[int]] = None  # Maps cell[i] -> image[i]
 
 
 # ────────────────────────────────────────────────────────────────
@@ -115,12 +116,13 @@ class AILayoutGenerator:
         rng = random.Random(page_seed)
         cells = self._build_structure(structure_name, image_count, aspect_ratios, style_enum, rng)
         cells = self._apply_style_modifiers(cells, style_enum, rng)
-        score = self._score_layout(cells, aspect_ratios, page_aspect)
+        score, indices = self._score_layout_and_assign(cells, aspect_ratios, page_aspect)
 
         name = f"ai_{style}_{image_count}img_{structure_name}_s{page_seed}"
         return GeneratedLayout(
             name=name, cells=cells, style=style,
             score=score, seed=page_seed,
+            image_indices=indices,
         )
 
     def generate_all_variants(self, image_count: int,
@@ -165,12 +167,15 @@ class AILayoutGenerator:
         structure_name = rng.choice(structures)
         cells = self._build_structure(structure_name, count, ratios, style_enum, rng)
         cells = self._apply_style_modifiers(cells, style_enum, rng)
-        score = self._score_layout(cells, ratios, page_aspect)
+
+        # Find best assignment of images to cells
+        score, indices = self._score_layout_and_assign(cells, ratios, page_aspect)
 
         name = f"ai_{style}_{count}img_{structure_name}_s{seed}"
         return GeneratedLayout(
             name=name, cells=cells, style=style,
             score=score, seed=seed,
+            image_indices=indices,
         )
 
     def _build_structure(self, name: str, count: int, ratios: List[float],
@@ -486,19 +491,56 @@ class AILayoutGenerator:
 
     # ── Layout Scoring ─────────────────────────────────────────
 
-    def _score_layout(self, cells: List[GeneratedCell],
-                       ratios: List[float],
-                       page_aspect: float) -> float:
+    # ── Layout Scoring & Assignment ────────────────────────────
+
+    def _score_layout_and_assign(self, cells: List[GeneratedCell],
+                                  ratios: List[float],
+                                  page_aspect: float) -> Tuple[float, List[int]]:
         """
-        Score a layout based on compositional quality.
-        Higher score = better layout.
+        Score a layout based on compositional quality, BUT find the optimal
+        assignment of images to cells first (based on aspect ratio rank).
+
+        Returns:
+            (best_score, best_image_indices)
         """
         if not cells:
-            return 0.0
+            return 0.0, []
 
+        # 1. Rank-order matching for aspect ratios
+        # Sort cells by aspect ratio (wide -> tall)
+        cell_ratios = []
+        for i, c in enumerate(cells):
+            ar = (c.w * page_aspect) / max(c.h, 0.01)
+            cell_ratios.append((ar, i))
+        
+        # Sort images by aspect ratio (wide -> tall)
+        img_ratios = []
+        for i, r in enumerate(ratios):
+            img_ratios.append((r, i))
+        
+        # Sort both descending (widest first)
+        cell_ratios.sort(key=lambda x: x[0], reverse=True)
+        img_ratios.sort(key=lambda x: x[0], reverse=True)
+        
+        # Create assignment map: cell_index -> image_index
+        # We need to map: layout.cells[k] should take image ratios[assigned_idx]
+        # But the caller needs: image_indices such that cells[k] gets image[image_indices[k]]
+        
+        # Mapping: valid only if counts match. If diff, just truncate/pad.
+        n = min(len(cells), len(ratios))
+        
+        # assigned_images[cell_idx] = image_idx
+        assigned_images = list(range(len(cells))) # Default identity
+        
+        for k in range(n):
+            c_idx = cell_ratios[k][1]
+            i_idx = img_ratios[k][1]
+            assigned_images[c_idx] = i_idx
+            
+        # 2. Compute score with this optimal assignment
         score = 100.0
 
-        # 1. Coverage score (0–25 points)
+        # Coverage score (0–25)
         total_area = sum(c.w * c.h for c in cells)
         if 0.55 <= total_area <= 0.92:
             coverage_score = 25.0
@@ -508,19 +550,22 @@ class AILayoutGenerator:
             coverage_score = total_area / 0.55 * 25.0
         score += max(0, coverage_score)
 
-        # 2. Aspect ratio match (0–25 points)
+        # Aspect ratio match score (0–50) with optimized assignment
         aspect_score = 0
-        for i, cell in enumerate(cells):
-            if i < len(ratios):
+        for c_idx, i_idx in enumerate(assigned_images):
+            if i_idx < len(ratios):
+                cell = cells[c_idx]
                 cell_ratio = (cell.w * page_aspect) / max(cell.h, 0.01)
-                image_ratio = ratios[i]
+                image_ratio = ratios[i_idx]
                 match = 1.0 - min(abs(cell_ratio - image_ratio) / max(image_ratio, 0.01), 1.0)
                 aspect_score += match
+        
         if cells:
-            aspect_score = (aspect_score / len(cells)) * 25.0
+            # Boost aspect score weight since we are optimizing for it
+            aspect_score = (aspect_score / len(cells)) * 50.0
         score += aspect_score
 
-        # 3. Balance score (0–25 points)
+        # Balance score (0–25)
         if cells:
             weights = [c.w * c.h * c.importance for c in cells]
             total_weight = sum(weights)
@@ -531,19 +576,25 @@ class AILayoutGenerator:
                 balance_score = 25.0 * (1.0 - min(dist * 4, 1.0))
                 score += balance_score
 
-        # 4. Overlap penalty (-50 per overlap)
+        # Overlap penalty
         for i in range(len(cells)):
             for j in range(i + 1, len(cells)):
                 if self._cells_overlap(cells[i], cells[j]):
                     score -= 50.0
 
-        # 5. Full-page usage bonus (+10 if cells reach near all edges)
+        # Full-page usage bonus
         max_x = max(c.x + c.w for c in cells)
         max_y = max(c.y + c.h for c in cells)
         if max_x > 0.90 and max_y > 0.90:
             score += 10.0
 
-        return max(0, score)
+        # print(f"DEBUG: AI Assign: {assigned_images} score={score}")
+        return max(0, score), assigned_images
+
+    # Retrofit old _score_layout to use new logic (it's called by generate_all_variants too)
+    def _score_layout(self, cells, ratios, page_aspect):
+        s, _ = self._score_layout_and_assign(cells, ratios, page_aspect)
+        return s
 
     def _cells_overlap(self, a: GeneratedCell, b: GeneratedCell) -> bool:
         """Check if two cells overlap."""
