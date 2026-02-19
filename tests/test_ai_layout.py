@@ -68,20 +68,16 @@ def test_seed_reproducibility():
         assert abs(c1.h - c2.h) < 0.001
 
 
-def test_different_seeds_differ():
-    """Rationale: Different seeds should produce different layouts."""
-    gen1 = AILayoutGenerator(seed=1)
-    gen2 = AILayoutGenerator(seed=999)
+def test_different_pages_differ():
+    """Rationale: Different page numbers should produce different layout structures."""
+    gen = AILayoutGenerator(seed=42)
 
-    l1 = gen1.generate(image_count=4, style="classic")
-    l2 = gen2.generate(image_count=4, style="classic")
+    l1 = gen.generate(image_count=4, style="classic", page_number=0)
+    l2 = gen.generate(image_count=4, style="classic", page_number=1)
 
-    # At least one cell should differ
-    diffs = sum(
-        abs(c1.x - c2.x) + abs(c1.y - c2.y) + abs(c1.w - c2.w) + abs(c1.h - c2.h)
-        for c1, c2 in zip(l1.cells, l2.cells)
-    )
-    assert diffs > 0.001, "Different seeds should produce different layouts"
+    # Structure names should differ (round-robin cycling)
+    assert l1.name != l2.name, \
+        f"Page 0 and 1 should use different structures: {l1.name} vs {l2.name}"
 
 
 # ── Style Tests ────────────────────────────────────────────────

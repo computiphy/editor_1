@@ -117,18 +117,14 @@ class AlbumRenderer:
     def _fit_to_cell(self, img: Image.Image, cell_w: int, cell_h: int) -> Image.Image:
         """
         Resize image to fit within cell dimensions, preserving aspect ratio.
-        Uses cover fit (fills the cell, may crop edges).
+        Uses CONTAIN fit — image fits entirely inside the cell without cropping.
+        Portrait photos stay portrait. Landscape photos stay landscape.
         """
         img_w, img_h = img.size
-        # Calculate scale to cover the cell
-        scale = max(cell_w / img_w, cell_h / img_h)
+        # Calculate scale to contain (fit inside without cropping)
+        scale = min(cell_w / img_w, cell_h / img_h)
         new_w = int(img_w * scale)
         new_h = int(img_h * scale)
         img = img.resize((new_w, new_h), Image.LANCZOS)
-
-        # Center crop to exact cell size
-        left = (new_w - cell_w) // 2
-        top = (new_h - cell_h) // 2
-        img = img.crop((left, top, left + cell_w, top + cell_h))
 
         return img

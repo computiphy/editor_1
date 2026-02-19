@@ -8,7 +8,7 @@ optimization. No ML model required — uses compositional principles:
   2. Visual Weight Balancing (hero images get more area)
   3. Aspect Ratio Matching (tall images → tall cells)
   4. Style-aware modifiers (elegant, dynamic, minimal, classic, magazine)
-  5. Seed-based reproducibility
+  5. Seed-based reproducibility (per-page variation)
 
 Outputs the same normalized cell format as TemplateRegistry,
 so the renderer works identically regardless of generator source.
@@ -39,7 +39,8 @@ class GeneratedCell:
     y: float
     w: float
     h: float
-    importance: float = 1.0   # Visual weight score (higher = more prominent)
+    importance: float = 1.0
+    prefers_portrait: bool = False   # Hint: assign portrait images here
 
 
 @dataclass
@@ -48,80 +49,109 @@ class GeneratedLayout:
     name: str
     cells: List[GeneratedCell]
     style: str
-    score: float              # Quality score (higher = better composition)
+    score: float
     seed: int
+
+
+# ────────────────────────────────────────────────────────────────
+# Structural Templates — Pool of layout structures to cycle through
+# Each returns normalized cells. The AI picks the best variant per page.
+# ────────────────────────────────────────────────────────────────
+
+def _make_structures_for_count(count: int, page_aspect: float) -> List[str]:
+    """Return a list of structure-generator names for a given count."""
+    structures = {
+        1: ["full_bleed", "centered"],
+        2: ["split_h", "split_v", "golden_h", "golden_v"],
+        3: ["hero_left", "hero_right", "hero_top", "triptych", "hero_bottom"],
+        4: ["grid_2x2", "hero_top_3", "hero_left_3", "l_shape", "golden_grid"],
+        5: ["mosaic_2_3", "hero_mosaic", "mosaic_3_2", "filmstrip_top", "asymmetric_5"],
+        6: ["grid_2x3", "grid_3x2", "hero_grid_5", "big2_small4", "mosaic_6"],
+    }
+    if count <= 6:
+        return structures.get(count, ["full_bleed"])
+    else:
+        return ["smart_grid"]
 
 
 class AILayoutGenerator:
     """
     Rule-based layout generator using compositional mathematics.
     Generates multiple layout variants and scores them.
+    Uses page_number to vary layouts across pages.
     """
 
     def __init__(self, seed: int = 42):
         self.seed = seed
-        self._rng = random.Random(seed)
 
     def generate(self, image_count: int,
                  aspect_ratios: Optional[List[float]] = None,
                  page_aspect: float = 1.5,
                  style: str = "classic",
-                 num_variants: int = 3) -> GeneratedLayout:
+                 num_variants: int = 3,
+                 page_number: int = 0) -> GeneratedLayout:
         """
         Generate the best layout for a set of images.
-
-        Args:
-            image_count: Number of images to place.
-            aspect_ratios: Aspect ratios (w/h) of each image. None = assume 1.5.
-            page_aspect: Page width/height ratio.
-            style: Layout style (elegant, minimal, dynamic, classic, magazine).
-            num_variants: Number of variants to generate and score.
-
-        Returns:
-            The highest-scoring GeneratedLayout.
+        Uses deterministic round-robin cycling through structures
+        to ensure every page looks different.
         """
         if aspect_ratios is None:
             aspect_ratios = [1.5] * image_count
-
-        # Ensure we have the right number of ratios
         while len(aspect_ratios) < image_count:
             aspect_ratios.append(1.5)
         aspect_ratios = aspect_ratios[:image_count]
 
-        # Generate variants with different seeds
-        variants = []
-        for i in range(num_variants):
-            variant_seed = self.seed + i * 97  # Deterministic variant seeds
-            rng = random.Random(variant_seed)
-            layout = self._generate_variant(
-                image_count, aspect_ratios, page_aspect, style, rng, variant_seed
-            )
-            variants.append(layout)
+        style_enum = LayoutStyle(style) if style in [s.value for s in LayoutStyle] else LayoutStyle.CLASSIC
 
-        # Return highest-scoring variant
-        variants.sort(key=lambda v: v.score, reverse=True)
-        return variants[0]
+        # Get ALL available structures for this image count
+        structures = _make_structures_for_count(image_count, page_aspect)
+
+        # Deterministic round-robin: page_number selects the structure
+        structure_idx = page_number % len(structures)
+        structure_name = structures[structure_idx]
+
+        # Build the layout with this structure
+        page_seed = self.seed + page_number * 31
+        rng = random.Random(page_seed)
+        cells = self._build_structure(structure_name, image_count, aspect_ratios, style_enum, rng)
+        cells = self._apply_style_modifiers(cells, style_enum, rng)
+        score = self._score_layout(cells, aspect_ratios, page_aspect)
+
+        name = f"ai_{style}_{image_count}img_{structure_name}_s{page_seed}"
+        return GeneratedLayout(
+            name=name, cells=cells, style=style,
+            score=score, seed=page_seed,
+        )
 
     def generate_all_variants(self, image_count: int,
                                aspect_ratios: Optional[List[float]] = None,
                                page_aspect: float = 1.5,
                                style: str = "classic",
-                               num_variants: int = 5) -> List[GeneratedLayout]:
-        """Generate and return ALL variants (sorted by score descending)."""
+                               num_variants: int = 5,
+                               page_number: int = 0) -> List[GeneratedLayout]:
+        """Generate ALL structure variants for a given count (sorted by score)."""
         if aspect_ratios is None:
             aspect_ratios = [1.5] * image_count
         while len(aspect_ratios) < image_count:
             aspect_ratios.append(1.5)
         aspect_ratios = aspect_ratios[:image_count]
 
+        style_enum = LayoutStyle(style) if style in [s.value for s in LayoutStyle] else LayoutStyle.CLASSIC
+        structures = _make_structures_for_count(image_count, page_aspect)
+
         variants = []
-        for i in range(num_variants):
-            variant_seed = self.seed + i * 97
+        for i, sname in enumerate(structures):
+            variant_seed = self.seed + page_number * 31 + i * 97
             rng = random.Random(variant_seed)
-            layout = self._generate_variant(
-                image_count, aspect_ratios, page_aspect, style, rng, variant_seed
-            )
-            variants.append(layout)
+            cells = self._build_structure(sname, image_count, aspect_ratios, style_enum, rng)
+            cells = self._apply_style_modifiers(cells, style_enum, rng)
+            score = self._score_layout(cells, aspect_ratios, page_aspect)
+
+            name = f"ai_{style}_{image_count}img_{sname}_s{variant_seed}"
+            variants.append(GeneratedLayout(
+                name=name, cells=cells, style=style,
+                score=score, seed=variant_seed,
+            ))
 
         variants.sort(key=lambda v: v.score, reverse=True)
         return variants
@@ -129,284 +159,278 @@ class AILayoutGenerator:
     def _generate_variant(self, count: int, ratios: List[float],
                            page_aspect: float, style: str,
                            rng: random.Random, seed: int) -> GeneratedLayout:
-        """Generate a single layout variant."""
+        """Generate a single layout variant (used internally)."""
         style_enum = LayoutStyle(style) if style in [s.value for s in LayoutStyle] else LayoutStyle.CLASSIC
-
-        if count == 1:
-            cells = self._layout_single(style_enum, rng)
-        elif count == 2:
-            cells = self._layout_duo(ratios, style_enum, rng)
-        elif count == 3:
-            cells = self._layout_trio(ratios, style_enum, rng)
-        elif count == 4:
-            cells = self._layout_quad(ratios, style_enum, rng)
-        elif count == 5:
-            cells = self._layout_quint(ratios, style_enum, rng)
-        elif count >= 6:
-            cells = self._layout_grid(count, ratios, style_enum, rng)
-        else:
-            cells = []
-
-        # Apply style modifiers
+        structures = _make_structures_for_count(count, page_aspect)
+        structure_name = rng.choice(structures)
+        cells = self._build_structure(structure_name, count, ratios, style_enum, rng)
         cells = self._apply_style_modifiers(cells, style_enum, rng)
-
-        # Score the layout
         score = self._score_layout(cells, ratios, page_aspect)
 
-        name = f"ai_{style}_{count}img_s{seed}"
+        name = f"ai_{style}_{count}img_{structure_name}_s{seed}"
         return GeneratedLayout(
             name=name, cells=cells, style=style,
             score=score, seed=seed,
         )
 
-    # ── Single Image Layouts ───────────────────────────────────
+    def _build_structure(self, name: str, count: int, ratios: List[float],
+                          style: LayoutStyle, rng: random.Random) -> List[GeneratedCell]:
+        """Build a specific layout structure."""
 
-    def _layout_single(self, style: LayoutStyle, rng: random.Random) -> List[GeneratedCell]:
-        """Single image — full bleed or centered with padding."""
-        if style == LayoutStyle.ELEGANT:
-            # Centered with generous golden-ratio padding
-            pad = 1.0 - (1.0 / PHI)
-            half_pad = pad / 2
-            return [GeneratedCell(half_pad, half_pad, 1.0 - pad, 1.0 - pad, importance=1.0)]
-        elif style == LayoutStyle.MINIMAL:
-            # Centered with clean 10% padding
-            return [GeneratedCell(0.10, 0.10, 0.80, 0.80, importance=1.0)]
-        else:
-            # Full bleed
-            return [GeneratedCell(0.0, 0.0, 1.0, 1.0, importance=1.0)]
+        # ── Single image ──
+        if name == "full_bleed":
+            return [GeneratedCell(0.0, 0.0, 1.0, 1.0)]
+        if name == "centered":
+            pad = 0.08
+            return [GeneratedCell(pad, pad, 1.0 - 2 * pad, 1.0 - 2 * pad)]
 
-    # ── Duo Layouts ────────────────────────────────────────────
+        # ── Two images ──
+        if name == "split_h":
+            return [
+                GeneratedCell(0.0, 0.0, 0.48, 1.0),
+                GeneratedCell(0.52, 0.0, 0.48, 1.0),
+            ]
+        if name == "split_v":
+            return [
+                GeneratedCell(0.0, 0.0, 1.0, 0.48),
+                GeneratedCell(0.0, 0.52, 1.0, 0.48),
+            ]
+        if name == "golden_h":
+            s = 0.60
+            return [
+                GeneratedCell(0.0, 0.0, s - 0.02, 1.0, importance=1.3),
+                GeneratedCell(s + 0.02, 0.0, 1.0 - s - 0.02, 1.0, importance=0.9),
+            ]
+        if name == "golden_v":
+            s = 0.60
+            return [
+                GeneratedCell(0.0, 0.0, 1.0, s - 0.02, importance=1.3),
+                GeneratedCell(0.0, s + 0.02, 1.0, 1.0 - s - 0.02, importance=0.9),
+            ]
 
-    def _layout_duo(self, ratios: List[float], style: LayoutStyle,
+        # ── Three images ──
+        if name == "hero_left":
+            g = 0.03
+            hw = 0.62
+            return [
+                GeneratedCell(0.0, 0.0, hw - g, 1.0, importance=1.5),
+                GeneratedCell(hw + g, 0.0, 1.0 - hw - g, 0.48, importance=0.8, prefers_portrait=True),
+                GeneratedCell(hw + g, 0.52, 1.0 - hw - g, 0.48, importance=0.8, prefers_portrait=True),
+            ]
+        if name == "hero_right":
+            g = 0.03
+            sw = 0.35
+            return [
+                GeneratedCell(0.0, 0.0, sw - g, 0.48, importance=0.8, prefers_portrait=True),
+                GeneratedCell(0.0, 0.52, sw - g, 0.48, importance=0.8, prefers_portrait=True),
+                GeneratedCell(sw + g, 0.0, 1.0 - sw - g, 1.0, importance=1.5),
+            ]
+        if name == "hero_top":
+            g = 0.03
+            hh = 0.60
+            return [
+                GeneratedCell(0.0, 0.0, 1.0, hh - g, importance=1.5),
+                GeneratedCell(0.0, hh + g, 0.48, 1.0 - hh - g, importance=0.8),
+                GeneratedCell(0.52, hh + g, 0.48, 1.0 - hh - g, importance=0.8),
+            ]
+        if name == "hero_bottom":
+            g = 0.03
+            sh = 0.37
+            return [
+                GeneratedCell(0.0, 0.0, 0.48, sh - g, importance=0.8),
+                GeneratedCell(0.52, 0.0, 0.48, sh - g, importance=0.8),
+                GeneratedCell(0.0, sh + g, 1.0, 1.0 - sh - g, importance=1.5),
+            ]
+        if name == "triptych":
+            g = 0.02
+            w = (1.0 - 2 * g) / 3
+            return [
+                GeneratedCell(0.0, 0.0, w, 1.0),
+                GeneratedCell(w + g, 0.0, w, 1.0),
+                GeneratedCell(2 * (w + g), 0.0, w, 1.0),
+            ]
+
+        # ── Four images ──
+        if name == "grid_2x2":
+            g = 0.03
+            w = (1.0 - g) / 2
+            h = (1.0 - g) / 2
+            return [
+                GeneratedCell(0.0, 0.0, w, h),
+                GeneratedCell(w + g, 0.0, w, h),
+                GeneratedCell(0.0, h + g, w, h),
+                GeneratedCell(w + g, h + g, w, h),
+            ]
+        if name == "hero_top_3":
+            g = 0.03
+            hh = 0.60
+            tw = (1.0 - 2 * g) / 3
+            return [
+                GeneratedCell(0.0, 0.0, 1.0, hh - g, importance=1.5),
+                GeneratedCell(0.0, hh + g, tw, 1.0 - hh - g, importance=0.8),
+                GeneratedCell(tw + g, hh + g, tw, 1.0 - hh - g, importance=0.8),
+                GeneratedCell(2 * (tw + g), hh + g, tw, 1.0 - hh - g, importance=0.8),
+            ]
+        if name == "hero_left_3":
+            g = 0.03
+            hw = 0.60
+            th = (1.0 - 2 * g) / 3
+            return [
+                GeneratedCell(0.0, 0.0, hw - g, 1.0, importance=1.5),
+                GeneratedCell(hw + g, 0.0, 1.0 - hw - g, th, importance=0.8, prefers_portrait=True),
+                GeneratedCell(hw + g, th + g, 1.0 - hw - g, th, importance=0.8, prefers_portrait=True),
+                GeneratedCell(hw + g, 2 * (th + g), 1.0 - hw - g, th, importance=0.8, prefers_portrait=True),
+            ]
+        if name == "l_shape":
+            g = 0.03
+            return [
+                GeneratedCell(0.0, 0.0, 0.62, 0.62, importance=1.5),
+                GeneratedCell(0.62 + g, 0.0, 1.0 - 0.62 - g, 0.48, importance=0.9),
+                GeneratedCell(0.62 + g, 0.48 + g, 1.0 - 0.62 - g, 0.52 - g, importance=0.9),
+                GeneratedCell(0.0, 0.62 + g, 0.62, 1.0 - 0.62 - g, importance=0.9),
+            ]
+        if name == "golden_grid":
+            g = 0.03
+            sw = 1.0 / PHI
+            return [
+                GeneratedCell(0.0, 0.0, sw - g, 0.48, importance=1.1),
+                GeneratedCell(sw + g, 0.0, 1.0 - sw - g, 0.48, importance=0.9),
+                GeneratedCell(0.0, 0.48 + g, sw - g, 0.52 - g, importance=0.9),
+                GeneratedCell(sw + g, 0.48 + g, 1.0 - sw - g, 0.52 - g, importance=1.1),
+            ]
+
+        # ── Five images ──
+        if name == "mosaic_2_3":
+            g = 0.03
+            tw = (1.0 - 2 * g) / 3
+            hw = (1.0 - g) / 2
+            return [
+                GeneratedCell(0.0, 0.0, hw, 0.48, importance=1.1),
+                GeneratedCell(hw + g, 0.0, hw, 0.48, importance=1.1),
+                GeneratedCell(0.0, 0.48 + g, tw, 0.52 - g, importance=0.9),
+                GeneratedCell(tw + g, 0.48 + g, tw, 0.52 - g, importance=0.9),
+                GeneratedCell(2 * (tw + g), 0.48 + g, tw, 0.52 - g, importance=0.9),
+            ]
+        if name == "mosaic_3_2":
+            g = 0.03
+            tw = (1.0 - 2 * g) / 3
+            hw = (1.0 - g) / 2
+            return [
+                GeneratedCell(0.0, 0.0, tw, 0.48, importance=0.9),
+                GeneratedCell(tw + g, 0.0, tw, 0.48, importance=0.9),
+                GeneratedCell(2 * (tw + g), 0.0, tw, 0.48, importance=0.9),
+                GeneratedCell(0.0, 0.48 + g, hw, 0.52 - g, importance=1.1),
+                GeneratedCell(hw + g, 0.48 + g, hw, 0.52 - g, importance=1.1),
+            ]
+        if name == "hero_mosaic":
+            g = 0.03
+            hw = 0.58
+            qh = (1.0 - 3 * g) / 4
+            return [
+                GeneratedCell(0.0, 0.0, hw - g, 1.0, importance=1.8),
+                GeneratedCell(hw + g, 0.0, 1.0 - hw - g, qh, importance=0.7),
+                GeneratedCell(hw + g, qh + g, 1.0 - hw - g, qh, importance=0.7),
+                GeneratedCell(hw + g, 2 * (qh + g), 1.0 - hw - g, qh, importance=0.7),
+                GeneratedCell(hw + g, 3 * (qh + g), 1.0 - hw - g, qh, importance=0.7),
+            ]
+        if name == "filmstrip_top":
+            g = 0.03
+            tw = (1.0 - 3 * g) / 4
+            return [
+                GeneratedCell(0.0, 0.0, tw, 0.35, importance=0.8),
+                GeneratedCell(tw + g, 0.0, tw, 0.35, importance=0.8),
+                GeneratedCell(2 * (tw + g), 0.0, tw, 0.35, importance=0.8),
+                GeneratedCell(3 * (tw + g), 0.0, tw, 0.35, importance=0.8),
+                GeneratedCell(0.0, 0.35 + g, 1.0, 0.65 - g, importance=1.5),
+            ]
+        if name == "asymmetric_5":
+            g = 0.03
+            return [
+                GeneratedCell(0.0, 0.0, 0.48, 0.58, importance=1.3),
+                GeneratedCell(0.48 + g, 0.0, 0.52 - g, 0.38, importance=1.0),
+                GeneratedCell(0.48 + g, 0.38 + g, 0.52 - g, 0.62 - g, importance=1.0),
+                GeneratedCell(0.0, 0.58 + g, 0.30, 0.42 - g, importance=0.8),
+                GeneratedCell(0.30 + g, 0.58 + g, 0.18 - g, 0.42 - g, importance=0.8),
+            ]
+
+        # ── Six images ──
+        if name == "grid_2x3":
+            g = 0.03
+            tw = (1.0 - 2 * g) / 3
+            th = (1.0 - g) / 2
+            return [
+                GeneratedCell(0.0, 0.0, tw, th, importance=1.0),
+                GeneratedCell(tw + g, 0.0, tw, th, importance=1.0),
+                GeneratedCell(2 * (tw + g), 0.0, tw, th, importance=1.0),
+                GeneratedCell(0.0, th + g, tw, th, importance=1.0),
+                GeneratedCell(tw + g, th + g, tw, th, importance=1.0),
+                GeneratedCell(2 * (tw + g), th + g, tw, th, importance=1.0),
+            ]
+        if name == "grid_3x2":
+            g = 0.03
+            tw = (1.0 - g) / 2
+            th = (1.0 - 2 * g) / 3
+            return [
+                GeneratedCell(0.0, 0.0, tw, th, importance=1.0),
+                GeneratedCell(tw + g, 0.0, tw, th, importance=1.0),
+                GeneratedCell(0.0, th + g, tw, th, importance=1.0),
+                GeneratedCell(tw + g, th + g, tw, th, importance=1.0),
+                GeneratedCell(0.0, 2 * (th + g), tw, th, importance=1.0),
+                GeneratedCell(tw + g, 2 * (th + g), tw, th, importance=1.0),
+            ]
+        if name == "hero_grid_5":
+            g = 0.03
+            hw = 0.55
+            sw = 1.0 - hw - g
+            sh = (1.0 - g) / 2
+            qw = (sw - g) / 2
+            return [
+                GeneratedCell(0.0, 0.0, hw - g, 1.0, importance=1.5),
+                GeneratedCell(hw + g, 0.0, qw, sh, importance=0.8),
+                GeneratedCell(hw + g + qw + g, 0.0, qw, sh, importance=0.8),
+                GeneratedCell(hw + g, sh + g, sw, sh, importance=1.0),
+                # Split bottom-right into 2
+                GeneratedCell(hw + g, sh + g, qw, sh, importance=0.8),
+                GeneratedCell(hw + g + qw + g, sh + g, qw, sh, importance=0.8),
+            ]
+        if name == "big2_small4":
+            g = 0.03
+            bw = (1.0 - g) / 2
+            bh = 0.58
+            sw = (1.0 - g) / 2
+            sh = (1.0 - bh - 2 * g) / 1
+            qw = (1.0 - 3 * g) / 4
+            return [
+                GeneratedCell(0.0, 0.0, bw, bh, importance=1.3),
+                GeneratedCell(bw + g, 0.0, bw, bh, importance=1.3),
+                GeneratedCell(0.0, bh + g, qw, 1.0 - bh - g, importance=0.8),
+                GeneratedCell(qw + g, bh + g, qw, 1.0 - bh - g, importance=0.8),
+                GeneratedCell(2 * (qw + g), bh + g, qw, 1.0 - bh - g, importance=0.8),
+                GeneratedCell(3 * (qw + g), bh + g, qw, 1.0 - bh - g, importance=0.8),
+            ]
+        if name == "mosaic_6":
+            g = 0.03
+            return [
+                GeneratedCell(0.0, 0.0, 0.38, 0.55, importance=1.2),
+                GeneratedCell(0.38 + g, 0.0, 0.30, 0.35, importance=0.9),
+                GeneratedCell(0.68 + g, 0.0, 0.32 - g, 0.55, importance=1.0, prefers_portrait=True),
+                GeneratedCell(0.38 + g, 0.35 + g, 0.30, 0.65 - g, importance=1.0, prefers_portrait=True),
+                GeneratedCell(0.0, 0.55 + g, 0.38, 0.45 - g, importance=0.9),
+                GeneratedCell(0.68 + g, 0.55 + g, 0.32 - g, 0.45 - g, importance=0.9),
+            ]
+
+        # ── Fallback for 7+ images: smart grid ──
+        return self._smart_grid(count, ratios, rng)
+
+    def _smart_grid(self, count: int, ratios: List[float],
                      rng: random.Random) -> List[GeneratedCell]:
-        """Two images — golden ratio split."""
-        # Decide split direction based on ratios
-        avg_ratio = sum(ratios) / len(ratios)
-        horizontal = avg_ratio >= 1.0  # Landscape → split horizontally
-
-        if style == LayoutStyle.DYNAMIC:
-            # Asymmetric golden split
-            split = 1.0 / PHI  # ≈ 0.618
-        elif style == LayoutStyle.ELEGANT:
-            split = 1.0 / PHI
-        else:
-            # Equal split
-            split = 0.5
-
-        # Randomly mirror the split for variety
-        if rng.random() > 0.5:
-            split = 1.0 - split
-
-        if horizontal:
-            return [
-                GeneratedCell(0.0, 0.0, split, 1.0, importance=1.2 if split > 0.5 else 0.8),
-                GeneratedCell(split, 0.0, 1.0 - split, 1.0, importance=0.8 if split > 0.5 else 1.2),
-            ]
-        else:
-            return [
-                GeneratedCell(0.0, 0.0, 1.0, split, importance=1.2 if split > 0.5 else 0.8),
-                GeneratedCell(0.0, split, 1.0, 1.0 - split, importance=0.8 if split > 0.5 else 1.2),
-            ]
-
-    # ── Trio Layouts ───────────────────────────────────────────
-
-    def _layout_trio(self, ratios: List[float], style: LayoutStyle,
-                      rng: random.Random) -> List[GeneratedCell]:
-        """Three images — hero + supporting or triptych."""
-        variant = rng.choice(["hero_left", "hero_right", "hero_top", "triptych"])
-
-        if style == LayoutStyle.MINIMAL:
-            variant = "triptych"
-        elif style in (LayoutStyle.MAGAZINE, LayoutStyle.DYNAMIC):
-            variant = rng.choice(["hero_left", "hero_right", "hero_top"])
-
-        # Golden ratio for hero size
-        hero = 1.0 / PHI + 0.1  # ≈ 0.72
-        support = 1.0 - hero
-
-        if variant == "hero_left":
-            return [
-                GeneratedCell(0.0, 0.0, hero, 1.0, importance=1.5),
-                GeneratedCell(hero, 0.0, support, 0.5, importance=0.8),
-                GeneratedCell(hero, 0.5, support, 0.5, importance=0.8),
-            ]
-        elif variant == "hero_right":
-            return [
-                GeneratedCell(0.0, 0.0, support, 0.5, importance=0.8),
-                GeneratedCell(0.0, 0.5, support, 0.5, importance=0.8),
-                GeneratedCell(support, 0.0, hero, 1.0, importance=1.5),
-            ]
-        elif variant == "hero_top":
-            return [
-                GeneratedCell(0.0, 0.0, 1.0, hero, importance=1.5),
-                GeneratedCell(0.0, hero, 0.5, support, importance=0.8),
-                GeneratedCell(0.5, hero, 0.5, support, importance=0.8),
-            ]
-        else:  # triptych
-            third = 1.0 / 3
-            return [
-                GeneratedCell(0.0, 0.0, third, 1.0, importance=1.0),
-                GeneratedCell(third, 0.0, third, 1.0, importance=1.0),
-                GeneratedCell(2 * third, 0.0, third, 1.0, importance=1.0),
-            ]
-
-    # ── Quad Layouts ───────────────────────────────────────────
-
-    def _layout_quad(self, ratios: List[float], style: LayoutStyle,
-                      rng: random.Random) -> List[GeneratedCell]:
-        """Four images — grid, hero + 3, or L-shape."""
-        variant = rng.choice(["grid", "hero_top_3", "hero_left_3", "l_shape"])
-
-        if style == LayoutStyle.MINIMAL:
-            variant = "grid"
-        elif style == LayoutStyle.MAGAZINE:
-            variant = rng.choice(["hero_top_3", "hero_left_3"])
-
-        if variant == "grid":
-            # 2×2 with optional golden ratio sizing
-            if style == LayoutStyle.DYNAMIC:
-                split_x = 1.0 / PHI
-                split_y = 1.0 / PHI
-            else:
-                split_x = 0.5
-                split_y = 0.5
-            return [
-                GeneratedCell(0.0, 0.0, split_x, split_y, importance=1.1),
-                GeneratedCell(split_x, 0.0, 1.0 - split_x, split_y, importance=0.9),
-                GeneratedCell(0.0, split_y, split_x, 1.0 - split_y, importance=0.9),
-                GeneratedCell(split_x, split_y, 1.0 - split_x, 1.0 - split_y, importance=1.1),
-            ]
-
-        elif variant == "hero_top_3":
-            hero_h = 0.62  # Golden ratio
-            support_h = 1.0 - hero_h
-            third = 1.0 / 3
-            return [
-                GeneratedCell(0.0, 0.0, 1.0, hero_h, importance=1.5),
-                GeneratedCell(0.0, hero_h, third, support_h, importance=0.8),
-                GeneratedCell(third, hero_h, third, support_h, importance=0.8),
-                GeneratedCell(2 * third, hero_h, third, support_h, importance=0.8),
-            ]
-
-        elif variant == "hero_left_3":
-            hero_w = 0.62
-            support_w = 1.0 - hero_w
-            third = 1.0 / 3
-            return [
-                GeneratedCell(0.0, 0.0, hero_w, 1.0, importance=1.5),
-                GeneratedCell(hero_w, 0.0, support_w, third, importance=0.8),
-                GeneratedCell(hero_w, third, support_w, third, importance=0.8),
-                GeneratedCell(hero_w, 2 * third, support_w, third, importance=0.8),
-            ]
-
-        else:  # l_shape
-            return [
-                GeneratedCell(0.0, 0.0, 0.65, 0.65, importance=1.5),
-                GeneratedCell(0.65, 0.0, 0.35, 0.45, importance=0.9),
-                GeneratedCell(0.65, 0.45, 0.35, 0.55, importance=0.9),
-                GeneratedCell(0.0, 0.65, 0.65, 0.35, importance=0.9),
-            ]
-
-    # ── Quint Layouts ──────────────────────────────────────────
-
-    def _layout_quint(self, ratios: List[float], style: LayoutStyle,
-                       rng: random.Random) -> List[GeneratedCell]:
-        """Five images — mosaic, cross, or filmstrip."""
-        variant = rng.choice(["mosaic_2_3", "hero_mosaic", "cross"])
-
-        if style == LayoutStyle.MINIMAL:
-            variant = "mosaic_2_3"
-        elif style == LayoutStyle.MAGAZINE:
-            variant = "hero_mosaic"
-
-        if variant == "mosaic_2_3":
-            # 2 on top, 3 on bottom
-            return [
-                GeneratedCell(0.0, 0.0, 0.50, 0.50, importance=1.1),
-                GeneratedCell(0.50, 0.0, 0.50, 0.50, importance=1.1),
-                GeneratedCell(0.0, 0.50, 0.333, 0.50, importance=0.9),
-                GeneratedCell(0.333, 0.50, 0.334, 0.50, importance=0.9),
-                GeneratedCell(0.667, 0.50, 0.333, 0.50, importance=0.9),
-            ]
-
-        elif variant == "hero_mosaic":
-            # Big hero + 4 small tiles
-            return [
-                GeneratedCell(0.0, 0.0, 0.62, 1.0, importance=1.8),
-                GeneratedCell(0.62, 0.0, 0.38, 0.25, importance=0.7),
-                GeneratedCell(0.62, 0.25, 0.38, 0.25, importance=0.7),
-                GeneratedCell(0.62, 0.50, 0.38, 0.25, importance=0.7),
-                GeneratedCell(0.62, 0.75, 0.38, 0.25, importance=0.7),
-            ]
-
-        else:  # cross
-            # Center hero + 4 corners
-            cx, cy = 0.25, 0.20
-            cw, ch = 0.50, 0.60
-            return [
-                GeneratedCell(cx, cy, cw, ch, importance=1.8),
-                GeneratedCell(0.0, 0.0, cx, cy + ch * 0.5, importance=0.7),
-                GeneratedCell(cx + cw, 0.0, 1.0 - cx - cw, cy + ch * 0.5, importance=0.7),
-                GeneratedCell(0.0, cy + ch * 0.5, cx, 1.0 - cy - ch * 0.5, importance=0.7),
-                GeneratedCell(cx + cw, cy + ch * 0.5, 1.0 - cx - cw, 1.0 - cy - ch * 0.5, importance=0.7),
-            ]
-
-    # ── Grid Layout (6+) ──────────────────────────────────────
-
-    def _layout_grid(self, count: int, ratios: List[float],
-                      style: LayoutStyle, rng: random.Random) -> List[GeneratedCell]:
-        """6+ images — intelligent grid with optional hero."""
-        if style == LayoutStyle.MAGAZINE and count >= 6:
-            # Hero + grid for the rest
-            hero_w = 0.50
-            hero_h = 0.50
-            cells = [GeneratedCell(0.0, 0.0, hero_w, hero_h, importance=1.8)]
-            remaining = count - 1
-            # Fill remaining space with grid
-            grid_cells = self._fill_grid_region(
-                remaining, hero_w, 0.0, 1.0 - hero_w, hero_h
-            )
-            grid_cells += self._fill_grid_region(
-                max(0, remaining - len(grid_cells)),
-                0.0, hero_h, 1.0, 1.0 - hero_h
-            )
-            cells.extend(grid_cells[:remaining])
-            return cells
-
-        # Standard grid
-        cols = math.ceil(math.sqrt(count * 1.5))  # Landscape-biased
+        """Intelligent grid for 7+ images with built-in gaps."""
+        g = 0.03
+        cols = math.ceil(math.sqrt(count * 1.5))
         rows = math.ceil(count / cols)
 
-        cells = []
-        cell_w = 1.0 / cols
-        cell_h = 1.0 / rows
-        idx = 0
-
-        for r in range(rows):
-            for c in range(cols):
-                if idx >= count:
-                    break
-                cells.append(GeneratedCell(
-                    x=c * cell_w,
-                    y=r * cell_h,
-                    w=cell_w,
-                    h=cell_h,
-                    importance=1.0,
-                ))
-                idx += 1
-
-        return cells
-
-    def _fill_grid_region(self, count: int, x: float, y: float,
-                           w: float, h: float) -> List[GeneratedCell]:
-        """Fill a rectangular region with a grid of cells."""
-        if count <= 0 or w <= 0 or h <= 0:
-            return []
-
-        cols = math.ceil(math.sqrt(count))
-        rows = math.ceil(count / cols)
-        cell_w = w / cols
-        cell_h = h / rows
+        cell_w = (1.0 - (cols - 1) * g) / cols
+        cell_h = (1.0 - (rows - 1) * g) / rows
 
         cells = []
         idx = 0
@@ -415,11 +439,10 @@ class AILayoutGenerator:
                 if idx >= count:
                     break
                 cells.append(GeneratedCell(
-                    x=x + c * cell_w,
-                    y=y + r * cell_h,
+                    x=c * (cell_w + g),
+                    y=r * (cell_h + g),
                     w=cell_w,
                     h=cell_h,
-                    importance=0.8,
                 ))
                 idx += 1
         return cells
@@ -429,37 +452,33 @@ class AILayoutGenerator:
     def _apply_style_modifiers(self, cells: List[GeneratedCell],
                                 style: LayoutStyle,
                                 rng: random.Random) -> List[GeneratedCell]:
-        """Apply style-specific adjustments to generated cells."""
+        """Apply style-specific adjustments."""
         if style == LayoutStyle.ELEGANT:
-            # Add inner padding to each cell (5% inset)
             inset = 0.02
             cells = [
                 GeneratedCell(
                     c.x + inset, c.y + inset,
                     max(c.w - 2 * inset, 0.05),
                     max(c.h - 2 * inset, 0.05),
-                    c.importance
+                    c.importance, c.prefers_portrait
                 ) for c in cells
             ]
 
         elif style == LayoutStyle.DYNAMIC:
-            # Slightly randomize positions for organic feel
-            # Scale jitter inversely with count to prevent overlap in dense grids
-            base_jitter = 0.01
+            base_jitter = 0.008
             jitter = base_jitter / max(len(cells), 1)
             for c in cells:
                 c.x = max(0, min(c.x + rng.uniform(-jitter, jitter), 1.0 - c.w))
                 c.y = max(0, min(c.y + rng.uniform(-jitter, jitter), 1.0 - c.h))
 
         elif style == LayoutStyle.MINIMAL:
-            # Generous uniform padding
-            inset = 0.03
+            inset = 0.02
             cells = [
                 GeneratedCell(
                     c.x + inset, c.y + inset,
                     max(c.w - 2 * inset, 0.05),
                     max(c.h - 2 * inset, 0.05),
-                    c.importance
+                    c.importance, c.prefers_portrait
                 ) for c in cells
             ]
 
@@ -473,12 +492,6 @@ class AILayoutGenerator:
         """
         Score a layout based on compositional quality.
         Higher score = better layout.
-
-        Criteria:
-        1. Coverage — how much of the page is used (60–90% is ideal)
-        2. Aspect match — cells match image aspect ratios
-        3. Balance — visual center of mass near page center
-        4. Overlap penalty — overlapping cells are bad
         """
         if not cells:
             return 0.0
@@ -487,12 +500,12 @@ class AILayoutGenerator:
 
         # 1. Coverage score (0–25 points)
         total_area = sum(c.w * c.h for c in cells)
-        if 0.6 <= total_area <= 0.95:
+        if 0.55 <= total_area <= 0.92:
             coverage_score = 25.0
-        elif total_area > 0.95:
-            coverage_score = 25.0 - (total_area - 0.95) * 100
+        elif total_area > 0.92:
+            coverage_score = 25.0 - (total_area - 0.92) * 80
         else:
-            coverage_score = total_area / 0.6 * 25.0
+            coverage_score = total_area / 0.55 * 25.0
         score += max(0, coverage_score)
 
         # 2. Aspect ratio match (0–25 points)
@@ -524,10 +537,16 @@ class AILayoutGenerator:
                 if self._cells_overlap(cells[i], cells[j]):
                     score -= 50.0
 
+        # 5. Full-page usage bonus (+10 if cells reach near all edges)
+        max_x = max(c.x + c.w for c in cells)
+        max_y = max(c.y + c.h for c in cells)
+        if max_x > 0.90 and max_y > 0.90:
+            score += 10.0
+
         return max(0, score)
 
     def _cells_overlap(self, a: GeneratedCell, b: GeneratedCell) -> bool:
-        """Check if two cells overlap (with small tolerance)."""
+        """Check if two cells overlap."""
         tol = 0.005
         return not (
             a.x + a.w <= b.x + tol or

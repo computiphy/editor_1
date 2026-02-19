@@ -200,7 +200,8 @@ class AlbumLayoutEngine:
                 aspect_ratios=aspect_ratios,
                 page_aspect=page_aspect,
                 style=self.ai_style,
-                num_variants=5,
+                num_variants=8,
+                page_number=page_number,
             )
             layout_mode = "ai"
             template_name = ai_layout.name

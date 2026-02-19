@@ -1,5 +1,5 @@
 pipeline:
-  name: "Creatives_layout2"
+  name: "Creatives_layout3"
   input_dir: "D:/studio/tools/vibecoding/sample_photos/trail_1"
   input_formats: ["raw", "jpg", "jpeg"]
   output_base: "D:/studio/tools/vibecoding/editor_1/wedding_ai_pipeline/output"
@@ -42,7 +42,7 @@ layout:
   mode: "ai"                        # template | ai | hybrid | mixed
   page_size: [7200, 4800]           # pixels [width, height] — 12"×8" at 300dpi
   dpi: 300
-  images_per_page: 6                # 0 = auto (3–6 based on total count)
+  images_per_page: 0                # 0 = auto (3–6 based on total count)
   padding: 60                       # outer margin in pixels
   gutter: 30                        # gap between cells in pixels
   use_cutouts: false                # true = composite RGBA cutouts over background
