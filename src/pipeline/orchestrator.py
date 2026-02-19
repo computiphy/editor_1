@@ -197,7 +197,38 @@ class WeddingPipeline:
             except Exception as e:
                 print(f"Error processing {s.path}: {e}")
 
-        # 4. Report
+        # 4. Album Layout (Stage 9)
+        total_album_pages = 0
+        album_project = None
+        if hasattr(self.config, 'layout') and self.config.layout.enabled:
+            try:
+                from src.layout.engine import AlbumLayoutEngine
+                layout_engine = AlbumLayoutEngine(
+                    mode=self.config.layout.mode,
+                    page_size=tuple(self.config.layout.page_size),
+                    dpi=self.config.layout.dpi,
+                    images_per_page=self.config.layout.images_per_page,
+                    padding=self.config.layout.padding,
+                    gutter=self.config.layout.gutter,
+                    use_cutouts=self.config.layout.use_cutouts,
+                    background_dir=self.config.layout.background_directory,
+                    background_strategy=self.config.layout.background_strategy,
+                    export_format=self.config.layout.export.format,
+                    export_quality=self.config.layout.export.quality,
+                )
+                album_project = layout_engine.generate_album(
+                    final_dir=final_dir,
+                    cutouts_dir=output_dir / "cutouts" if self.config.background_removal.enabled else None,
+                    output_dir=output_dir,
+                    config_snapshot=self.config.model_dump() if hasattr(self.config, 'model_dump') else {},
+                )
+                total_album_pages = len(album_project.pages)
+            except Exception as e:
+                print(f"Error in album layout: {e}")
+                import traceback
+                traceback.print_exc()
+
+        # 5. Report
         import json
         from dataclasses import asdict
         
@@ -208,6 +239,7 @@ class WeddingPipeline:
                 "total_restored": total_restored,
                 "total_graded": total_graded,
                 "total_cutouts": total_cutouts,
+                "total_album_pages": total_album_pages,
                 "elapsed_seconds": time.time() - start_time
             },
             "images": [asdict(s) for s in scores]
@@ -215,7 +247,7 @@ class WeddingPipeline:
         with open(output_dir / "report.json", "w") as f:
             json.dump(report, f, indent=4, default=str)
 
-        # 5. PDF Summary
+        # 6. PDF Summary
         try:
             from src.utils.pdf_gen import PDFReportGenerator
             pdf_gen = PDFReportGenerator(output_dir / "summary.pdf")
@@ -229,7 +261,7 @@ class WeddingPipeline:
             total_culled=total_input - len(passed_images),
             total_restored=total_restored,
             total_graded=total_graded,
-            album_pages=0,
+            album_pages=total_album_pages,
             elapsed_seconds=time.time() - start_time,
             errors=[]
         )

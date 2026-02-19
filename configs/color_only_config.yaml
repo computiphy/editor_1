@@ -1,5 +1,5 @@
 pipeline:
-  name: "Creatives_ColorOnly"
+  name: "Creatives_cutout_massive_gpu"
   input_dir: "D:/studio/tools/vibecoding/sample_photos/creatives"
   input_formats: ["raw", "jpg", "jpeg"]
   output_base: "D:/studio/tools/vibecoding/editor_1/wedding_ai_pipeline/output"
@@ -26,7 +26,7 @@ restoration:
 color_grading:
   enabled: true
   method: "lab_statistical"
-  style: "film_kodak"               # OPTIONS: natural, cinematic, pastel, moody,
+  style: "golden_hour_portrait"               # OPTIONS: natural, cinematic, pastel, moody,
                                     #          golden_hour, film_kodak, film_fuji,
                                     #          vibrant, black_and_white
   strength: 1.0                     # 0.0 = no effect, 1.0 = full, 1.5 = max
@@ -34,8 +34,23 @@ color_grading:
   segmentation_enabled: true       # Set true to enable SAM-based local grading
 
 background_removal:
-  enabled: false                     # Set true to generate cutouts (PNG with transparent bg)
-  model: "birefnet-portrait"        # BEST for weddings. Options: birefnet-portrait, birefnet-massive, bria-rmbg, u2net
+  enabled: true                     # Set true to generate cutouts (PNG with transparent bg)
+  model: "birefnet-massive"        # BEST for weddings. Options: birefnet-portrait, birefnet-massive, bria-rmbg, u2net
+
+layout:
+  enabled: true                     # Generate album pages
+  mode: "template"                  # template | algorithmic | mixed
+  page_size: [3600, 2400]           # pixels [width, height] — 12"×8" at 300dpi
+  dpi: 300
+  images_per_page: 0                # 0 = auto (3–6 based on total count)
+  padding: 60                       # outer margin in pixels
+  gutter: 30                        # gap between cells in pixels
+  use_cutouts: false                # true = composite RGBA cutouts over background
+  background_directory: "assets/backgrounds"
+  background_strategy: "dominant"   # dominant | average
+  export:
+    format: "jpeg"
+    quality: 95
 
 cropping:
   enabled: false
