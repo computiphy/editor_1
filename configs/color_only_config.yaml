@@ -46,7 +46,7 @@ layout:
   padding: 60                       # outer margin in pixels
   gutter: 30                        # gap between cells in pixels
   use_cutouts: false                # true = composite RGBA cutouts over background
-  background_directory: "assets/backgrounds"
+  background_directory: "assets/backgrounds/1"
   background_strategy: "dominant"   # dominant | average
   ai_style: "magazine"              # classic | elegant | minimal | dynamic | magazine
   ai_seed: 42                       # seed for reproducibility
