@@ -19,6 +19,7 @@ from src.layout.models import (
 from src.layout.template_registry import TemplateRegistry
 from src.layout.background_selector import BackgroundSelector
 from src.layout.renderer import AlbumRenderer
+from src.layout.ai_generator import AILayoutGenerator
 
 
 class AlbumLayoutEngine:
@@ -38,7 +39,9 @@ class AlbumLayoutEngine:
                  background_dir: str = "assets/backgrounds",
                  background_strategy: str = "dominant",
                  export_format: str = "jpeg",
-                 export_quality: int = 95):
+                 export_quality: int = 95,
+                 ai_style: str = "classic",
+                 ai_seed: int = 42):
 
         self.mode = mode
         self.page_width, self.page_height = page_size
@@ -47,6 +50,7 @@ class AlbumLayoutEngine:
         self.padding = padding
         self.gutter = gutter
         self.use_cutouts = use_cutouts
+        self.ai_style = ai_style
 
         # Initialize submodules
         self.registry = TemplateRegistry()
@@ -59,6 +63,7 @@ class AlbumLayoutEngine:
             quality=export_quality,
             output_format=export_format,
         )
+        self.ai_generator = AILayoutGenerator(seed=ai_seed)
 
     def generate_album(self,
                        final_dir: Path,
@@ -170,36 +175,62 @@ class AlbumLayoutEngine:
                        cutout_map: Dict[str, Path]) -> PageLayout:
         """
         Generate a PageLayout for a set of images.
-        Selects template, resolves cell coordinates, picks background.
+        Routes to template, AI, or hybrid generator based on mode.
         """
         count = len(image_paths)
+        page_aspect = self.page_width / max(self.page_height, 1)
+        layout_mode = self.mode
+        template_name = None
 
-        # Select template
-        template = self.registry.get_for_count(count)
-        if template is None:
-            # Fallback: simple grid
-            template = self.registry.get_for_count(1)
+        # ── Get normalized cells by mode ──────────────────────
+        if self.mode in ("ai", "hybrid"):
+            # AI-generated layout
+            from PIL import Image as PILImage
+            aspect_ratios = []
+            for p in image_paths:
+                try:
+                    with PILImage.open(p) as im:
+                        w, h = im.size
+                        aspect_ratios.append(w / max(h, 1))
+                except Exception:
+                    aspect_ratios.append(1.5)
 
-        # Compute usable area (inside padding)
+            ai_layout = self.ai_generator.generate(
+                image_count=count,
+                aspect_ratios=aspect_ratios,
+                page_aspect=page_aspect,
+                style=self.ai_style,
+                num_variants=5,
+            )
+            layout_mode = "ai"
+            template_name = ai_layout.name
+
+            # Use AI cells (they have .x, .y, .w, .h — same interface)
+            norm_cells = ai_layout.cells[:count]
+
+        else:
+            # Template-based layout
+            template = self.registry.get_for_count(count)
+            if template is None:
+                template = self.registry.get_for_count(1)
+            layout_mode = "template"
+            template_name = template.name
+            norm_cells = template.cells[:count]
+
+        # ── Convert normalized → pixel coordinates ────────────
         usable_w = self.page_width - 2 * self.padding
         usable_h = self.page_height - 2 * self.padding
-
-        # Convert normalized cells to pixel coordinates
         cells = []
-        template_cells = template.cells[:count]  # Only use as many cells as images
 
-        for i, (img_path, tcell) in enumerate(zip(image_paths, template_cells)):
-            # Account for gutters between cells
-            cell_x = self.padding + int(tcell.x * usable_w) + (self.gutter if tcell.x > 0.01 else 0)
-            cell_y = self.padding + int(tcell.y * usable_h) + (self.gutter if tcell.y > 0.01 else 0)
-            cell_w = int(tcell.w * usable_w) - (self.gutter if tcell.x > 0.01 else 0)
-            cell_h = int(tcell.h * usable_h) - (self.gutter if tcell.y > 0.01 else 0)
+        for i, (img_path, ncell) in enumerate(zip(image_paths, norm_cells)):
+            cell_x = self.padding + int(ncell.x * usable_w) + (self.gutter if ncell.x > 0.01 else 0)
+            cell_y = self.padding + int(ncell.y * usable_h) + (self.gutter if ncell.y > 0.01 else 0)
+            cell_w = int(ncell.w * usable_w) - (self.gutter if ncell.x > 0.01 else 0)
+            cell_h = int(ncell.h * usable_h) - (self.gutter if ncell.y > 0.01 else 0)
 
-            # Ensure minimum cell size
             cell_w = max(cell_w, 100)
             cell_h = max(cell_h, 100)
 
-            # Resolve cutout path
             cutout_path = cutout_map.get(img_path.stem)
 
             cells.append(CellPlacement(
@@ -217,6 +248,6 @@ class AlbumLayoutEngine:
             page_number=page_number,
             cells=cells,
             background_path=bg_path,
-            layout_mode=self.mode,
-            template_name=template.name if template else None,
+            layout_mode=layout_mode,
+            template_name=template_name,
         )

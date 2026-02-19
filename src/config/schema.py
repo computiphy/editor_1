@@ -61,7 +61,7 @@ class LayoutExportConfig(BaseModel):
 
 class LayoutConfig(BaseModel):
     enabled: bool = False
-    mode: str = "template"                                          # template | algorithmic | mixed
+    mode: str = "template"                                          # template | algorithmic | ai | hybrid | mixed
     page_size: List[int] = Field(default_factory=lambda: [3600, 2400])
     dpi: int = 300
     images_per_page: int = 0                                        # 0 = auto
@@ -70,6 +70,8 @@ class LayoutConfig(BaseModel):
     use_cutouts: bool = False
     background_directory: str = "assets/backgrounds"
     background_strategy: str = "dominant"                            # dominant | average
+    ai_style: str = "classic"                                       # classic | elegant | minimal | dynamic | magazine
+    ai_seed: int = 42
     export: LayoutExportConfig = Field(default_factory=LayoutExportConfig)
 
 class CroppingConfig(BaseModel):

@@ -215,6 +215,8 @@ class WeddingPipeline:
                     background_strategy=self.config.layout.background_strategy,
                     export_format=self.config.layout.export.format,
                     export_quality=self.config.layout.export.quality,
+                    ai_style=self.config.layout.ai_style,
+                    ai_seed=self.config.layout.ai_seed,
                 )
                 album_project = layout_engine.generate_album(
                     final_dir=final_dir,
