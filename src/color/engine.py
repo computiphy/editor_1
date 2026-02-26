@@ -8,7 +8,7 @@ tone curves, split toning, vignette, and grain.
 
 import cv2
 import numpy as np
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple, Union, List
 from dataclasses import dataclass, field
 from src.core.enums import ColorMethod, ColorStyle
 
@@ -344,11 +344,37 @@ class ColorGradingEngine:
     split toning, vignette, and grain.
     """
 
-    def __init__(self, method: ColorMethod = ColorMethod.LAB_STATISTICAL,
-                 style: str = "natural", strength: float = 1.0):
-        self.method = method
+    def __init__(self, method: Union[ColorMethod, str] = ColorMethod.LAB_STATISTICAL,
+                 style: str = "natural", strength: float = 1.0,
+                 use_aces: bool = False, lut_path: Optional[str] = None,
+                 perlin_grain: bool = True, halation_enabled: bool = True,
+                 clahe_enabled: bool = False):
+        # Handle string input for method
+        if isinstance(method, str):
+            try:
+                self.method = ColorMethod(method)
+            except ValueError:
+                self.method = ColorMethod.LAB_STATISTICAL
+        else:
+            self.method = method
+
         self.strength = np.clip(strength, 0.0, 1.5)
+        self.style_name = style
         self.preset = PRESETS.get(style, PRESETS["natural"])
+
+        # SOTA V2 Engine Integration
+        self.sota_v2 = None
+        if self.method == ColorMethod.SOTA_V2:
+            from src.color.engine_v2 import SOTAColorEngine
+            self.sota_v2 = SOTAColorEngine(
+                style=style,
+                strength=self.strength,
+                use_aces=use_aces,
+                lut_path=lut_path,
+                perlin_grain=perlin_grain,
+                halation_enabled=halation_enabled,
+                clahe_enabled=clahe_enabled
+            )
 
     # ── Public API ──────────────────────────────────────────────
 
@@ -361,6 +387,9 @@ class ColorGradingEngine:
         Apply the full style preset pipeline.
         This is the main entry point for the AI colorist.
         """
+        if self.sota_v2:
+            return self.sota_v2.apply_style(image)
+
         img = image.copy().astype(np.float32)
 
         # 1. White Balance (Temperature / Tint)

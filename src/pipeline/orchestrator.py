@@ -72,8 +72,14 @@ class WeddingPipeline:
         if self.config.color_grading.enabled:
             from src.color.engine import ColorGradingEngine
             grading_engine = ColorGradingEngine(
+                method=self.config.color_grading.method,
                 style=self.config.color_grading.style,
-                strength=self.config.color_grading.strength
+                strength=self.config.color_grading.strength,
+                use_aces=self.config.color_grading.use_aces,
+                lut_path=self.config.color_grading.lut_path,
+                perlin_grain=self.config.color_grading.perlin_grain,
+                halation_enabled=self.config.color_grading.halation_enabled,
+                clahe_enabled=self.config.color_grading.clahe_enabled
             )
             print(f"    Color Style: {self.config.color_grading.style} (strength={self.config.color_grading.strength})")
 

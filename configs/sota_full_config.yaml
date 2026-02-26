@@ -1,0 +1,45 @@
+pipeline:
+  name: "Eswar_SOTA_V2_Test_2"
+  input_dir: "D:/studio/tools/vibecoding/sample_photos/creatives"
+  input_formats: ["raw", "jpg", "jpeg"]
+  output_base: "D:/studio/tools/vibecoding/editor_1/wedding_ai_pipeline/output"
+  gpu_backend: "auto"
+  workers: 4
+  metadata_required: false
+
+culling:
+  enabled: false
+  blur_threshold: 100.0
+  duplicate_threshold: 5
+  quality_threshold: 70.0
+
+restoration:
+  enabled: false
+  auto_route: true
+  primary_model: "nafnet"
+  face_restore: true
+
+color_grading:
+  enabled: true
+  method: "sota_v2"               # USE THE NEW SOTA V2 ENGINE
+  style: "cinematic"              # Base style preset
+  strength: 0.8                   # Intensity of the grade
+  
+  # NEW SOTA V2 PARAMETERS
+  use_aces: true                  # Use ACEScg wide-gamut scene-linear working space
+  lut_path: "assets/luts/Shutterstock_Free_LUTs/SoftBlackAndWhite.cube"  # Optional 3D LUT (.cube)
+  
+  # ADVANCED FEATURES (enabled via preset or overrides)
+  segmentation_enabled: true      # Local semantic adjustments
+  clahe_enabled: true             # Local contrast enhancement in Oklab L
+  halation_enabled: true          # Film-like red scatter in highlights
+  perlin_grain: true              # Luminance-mapped clumpy film grain
+
+layout:
+  enabled: false
+  mode: "ai"
+  ai_style: "magazine"
+  background_directory: "assets/backgrounds/2"
+
+narrative:
+  enabled: false

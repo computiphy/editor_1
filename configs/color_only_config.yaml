@@ -1,5 +1,5 @@
 pipeline:
-  name: "Eswar_layout_trail_5"
+  name: "Eswar_layout_trail_8"
   input_dir: "D:/studio/tools/vibecoding/sample_photos/creatives"
   input_formats: ["raw", "jpg", "jpeg"]
   output_base: "D:/studio/tools/vibecoding/editor_1/wedding_ai_pipeline/output"

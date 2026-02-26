@@ -40,6 +40,8 @@ from src.color.oklab import (
     srgb_to_oklab, oklab_to_srgb,
     oklab_chroma, oklab_hue,
 )
+from src.color.aces import srgb_to_acescg, acescg_to_srgb
+from src.color.lut3d import apply_lut3d_array, parse_cube_file
 
 
 # ────────────────────────────────────────────────────────────────
@@ -454,13 +456,14 @@ def apply_perlin_grain(image: np.ndarray, amount: float = 0.3,
     luminance = (0.2126 * image[:, :, 0] +
                  0.7152 * image[:, :, 1] +
                  0.0722 * image[:, :, 2])
-
     # Weight curve: maximum at L=0.3 (shadow/midtone), fading in highlights
     grain_weight = np.clip(1.0 - luminance, 0.0, 1.0)
     grain_weight = grain_weight ** 0.6  # Soften the falloff
 
     # Apply grain to all three channels (film grain is monochromatic)
-    scaled_noise = noise * grain_weight * amount * 0.1
+    # The 'amount' from legacy presets is [0, 255]. We scale it to [0, 1].
+    # 0.004 is roughly 1/255.
+    scaled_noise = noise * grain_weight * (amount * 0.004)
     result = image + scaled_noise[:, :, np.newaxis]
 
     return np.clip(result, 0.0, 1.0).astype(np.float32)
@@ -477,9 +480,20 @@ class SOTAColorEngine:
     Uses the same PRESETS dictionary as the legacy engine.
     """
 
-    def __init__(self, style: str = "natural", strength: float = 1.0):
+    def __init__(self, style: str = "natural", strength: float = 1.0,
+                 use_aces: bool = False, lut_path: Optional[str] = None,
+                 perlin_grain: bool = True, halation_enabled: bool = True,
+                 clahe_enabled: bool = False):
         self.strength = np.clip(strength, 0.0, 1.5)
         self.preset = PRESETS.get(style, PRESETS["natural"])
+        self.use_aces = use_aces
+        self.lut_path = lut_path
+        self.perlin_grain = perlin_grain
+        self.halation_enabled = halation_enabled
+        self.clahe_enabled = clahe_enabled
+        self._lut_data = None
+        if self.lut_path:
+            self._lut_data = parse_cube_file(self.lut_path)
 
     # ── Public API ──────────────────────────────────────────────
 
@@ -493,21 +507,33 @@ class SOTAColorEngine:
         # 1. Normalize to float32 [0-1]
         img = self._normalize_input(image)
 
-        # 2. sRGB → Linear (gamma decode)
-        #    ALL exposure/lighting math happens in linear space.
-        linear = srgb_to_linear(img)
+        # 2. White Balance (CAT02) — happens first in sRGB-like space
+        #    If we're in "SOTA" mode, we prefer CAT02 over legacy linear shifts.
+        if abs(self.preset.temperature_shift) > 0.1:
+            # Approximate shift to Kelvin (6500 is neutral D65)
+            # Legacy shift -100 to 100 maps to roughly 3000K to 10000K
+            temp_kelvin = 6500 - (self.preset.temperature_shift * self.strength * 35)
+            img = chromatic_adapt_cat02(img, source_illuminant=temp_kelvin, target_illuminant=6500)
 
-        # 3. White Balance (Temperature / Tint) — in linear space
-        linear = self._adjust_temperature_linear(linear, self.preset.temperature_shift * self.strength)
-        linear = self._adjust_tint_linear(linear, self.preset.tint_shift * self.strength)
+        # 3. Working Space Conversion
+        #    If use_aces is on, we work in ACEScg scene-linear.
+        #    Otherwise, we use standard Linear sRGB.
+        if self.use_aces:
+            working_space = srgb_to_acescg(img)
+        else:
+            working_space = srgb_to_linear(img)
 
         # 4. Exposure — in linear space (mathematically correct)
-        linear = self._adjust_exposure_linear(linear, self.preset.exposure_offset * self.strength)
+        working_space = self._adjust_exposure_linear(working_space, self.preset.exposure_offset * self.strength)
 
         # 5. Linear → Oklab (perceptual space for all color work)
-        #    We go Linear → sRGB → Oklab (the Oklab matrices expect linear sRGB)
-        srgb_mid = linear_to_srgb(np.clip(linear, 0.0, 1.0))
-        oklab = srgb_to_oklab(srgb_mid)
+        #    If in ACEScg, we first convert back to sRGB linear for Oklab (which models sRGB response)
+        if self.use_aces:
+            srgb_linear = acescg_to_srgb(working_space)  # This handles display transform
+            oklab = srgb_to_oklab(srgb_linear)
+        else:
+            srgb_mid = linear_to_srgb(np.clip(working_space, 0.0, 1.0))
+            oklab = srgb_to_oklab(srgb_mid)
 
         # 6. Tone Curve (cubic spline on Oklab L channel)
         oklab = self._apply_tone_curve_oklab(oklab, self.preset.tone_curve)
@@ -525,20 +551,38 @@ class SOTAColorEngine:
         oklab = self._adjust_saturation_oklab(oklab, self.preset.saturation_scale)
         oklab = self._adjust_vibrance_oklab(oklab, self.preset.vibrance_scale)
 
+        # 10b. Optional CLAHE for local contrast boost (New in V2)
+        if self.clahe_enabled:
+            # We need to convert to sRGB and back to use the current apply_clahe_oklab implementation
+            # or refactor it. For now, it's safer to just call it.
+            temp_srgb = oklab_to_srgb(oklab)
+            temp_srgb = apply_clahe_oklab(temp_srgb, clip_limit=1.5, grid_size=8)
+            oklab = srgb_to_oklab(temp_srgb)
+
         # 11. Oklab → sRGB
         img = oklab_to_srgb(oklab)
 
-        # 12. Vignette (in sRGB space, it's a darkening effect)
+        # 12. 3D LUT Engine (.cube)
+        #     Applied after primary grading but before final finishing steps.
+        if self._lut_data:
+            lut, size = self._lut_data
+            img = apply_lut3d_array(img, lut, size, intensity=1.0)
+
+        # 13. Halation (Optical Red Scattering)
+        if self.halation_enabled and self.preset.grain_amount > 20:
+             img = apply_halation(img, intensity=0.1 * self.strength, radius=10, threshold=0.6)
+
+        # 14. Vignette (in sRGB space, it's a darkening effect)
         if self.preset.vignette_strength > 0:
             img = self._apply_vignette(img, self.preset.vignette_strength,
                                        self.preset.vignette_radius)
 
-        # 13. Grain
-        if self.preset.grain_amount > 0:
-            img = self._apply_grain(img, self.preset.grain_amount,
-                                    self.preset.grain_size)
+        # 15. Grain (New: Perlin Noise)
+        if self.perlin_grain and self.preset.grain_amount > 0:
+            img = apply_perlin_grain(img, amount=self.preset.grain_amount * self.strength,
+                                    scale=self.preset.grain_size or 3.0)
 
-        # 14. Final output: float32 → uint8
+        # 16. Final output: float32 → uint8
         return np.clip(img * 255.0, 0, 255).astype(np.uint8)
 
     # ── Input Normalization ─────────────────────────────────────

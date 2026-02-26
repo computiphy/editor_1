@@ -50,6 +50,12 @@ class ColorGradingConfig(BaseModel):
     reference_image: Optional[str] = None
     strength: float = 1.0
     segmentation_enabled: bool = False
+    # SOTA V2 Features
+    use_aces: bool = False
+    lut_path: Optional[str] = None
+    clahe_enabled: bool = False
+    halation_enabled: bool = False
+    perlin_grain: bool = False
 
 class BackgroundRemovalConfig(BaseModel):
     enabled: bool = False

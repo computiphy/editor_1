@@ -24,6 +24,7 @@ class ColorMethod(Enum):
     LAB_STATISTICAL = "lab_statistical"
     LUT = "lut"
     HISTOGRAM = "histogram"
+    SOTA_V2 = "sota_v2"
 
 class ColorStyle(Enum):
     NATURAL = "natural"

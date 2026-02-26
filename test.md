@@ -79,3 +79,11 @@ This file tracks the TDD progress, rationale for each test, and current status.
 | `test_output_shape_and_dtype` | CAT02 output matches shape and is float32. | ✅ PASSED | P1: Integration stability. |
 | `test_output_range_clamped` | CAT02 output clamped to [0, 1]. | ✅ PASSED | P1: No overflow. |
 | `test_temperature_kelvin_api` | CAT02 accepts Kelvin (2700K, 6500K). | ✅ PASSED | P1: User-friendly API. |
+| `test_parse_identity_cube` | Correctly parses a 2x2x2 identity .cube file. | ✅ PASSED | P4: .cube file parsing foundation. |
+| `test_identity_lut_is_passthrough` | Identity LUT with tetrahedral interpolation is no-op. | ✅ PASSED | P4: Tetrahedral accuracy. |
+| `test_warm_lut_reduces_blue` | Warm .cube LUT correctly shifts colors. | ✅ PASSED | P4: Color transformation logic. |
+| `test_no_banding_gradients` | Tetrahedral interp produces smooth gradients. | ✅ PASSED | P4: Superior quality over trilinear. |
+| `test_srgb_to_acescg_produces_linear` | sRGB 0.5 maps to scene-linear mid-grey in ACEScg. | ✅ PASSED | P5: Color space accuracy. |
+| `test_acescg_roundtrip` | sRGB → ACEScg → sRGB is identity. | ✅ PASSED | P5: Transform invertibility. |
+| `test_black_stays_black` | Pure black is preserved in ACEScg. | ✅ PASSED | P5: Foundation stability. |
+| `test_edge_values_no_nan` | Near-zero/one values don't produce NaN. | ✅ PASSED | P5: Numerical robustness. |

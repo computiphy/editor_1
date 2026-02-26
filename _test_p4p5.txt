@@ -1,0 +1,25 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.11.0, pytest-9.0.2, pluggy-1.6.0 -- C:\Users\joylo\AppData\Local\Programs\Python\Python311\python.exe
+cachedir: .pytest_cache
+rootdir: D:\studio\tools\vibecoding\editor_1\wedding_ai_pipeline
+configfile: pyproject.toml
+plugins: mock-3.15.1
+collecting ... collected 15 items
+
+tests/test_lut3d.py::TestCubeParser::test_parse_identity_cube PASSED     [  6%]
+tests/test_lut3d.py::TestCubeParser::test_parse_extracts_correct_values PASSED [ 13%]
+tests/test_lut3d.py::TestCubeParser::test_parse_warm_lut PASSED          [ 20%]
+tests/test_lut3d.py::TestTetrahedralInterpolation::test_identity_lut_is_passthrough PASSED [ 26%]
+tests/test_lut3d.py::TestTetrahedralInterpolation::test_warm_lut_reduces_blue PASSED [ 33%]
+tests/test_lut3d.py::TestTetrahedralInterpolation::test_output_shape_and_dtype PASSED [ 40%]
+tests/test_lut3d.py::TestTetrahedralInterpolation::test_output_range PASSED [ 46%]
+tests/test_lut3d.py::TestTetrahedralInterpolation::test_no_banding_gradients PASSED [ 53%]
+tests/test_aces.py::TestACESTransforms::test_srgb_to_acescg_produces_linear PASSED [ 60%]
+tests/test_aces.py::TestACESTransforms::test_acescg_roundtrip PASSED     [ 66%]
+tests/test_aces.py::TestACESTransforms::test_acescg_is_float32 PASSED    [ 73%]
+tests/test_aces.py::TestACESTransforms::test_acescg_shape_preserved PASSED [ 80%]
+tests/test_aces.py::TestACESTransforms::test_black_stays_black PASSED    [ 86%]
+tests/test_aces.py::TestACESTransforms::test_acescg_white_is_scene_linear PASSED [ 93%]
+tests/test_aces.py::TestACESTransforms::test_edge_values_no_nan PASSED   [100%]
+
+============================= 15 passed in 0.33s ==============================
