@@ -32,7 +32,7 @@
 - [x] P0: Eliminate uint8 roundtrips — 32-bit float throughout the grading pipeline
 - [x] P1: Cubic spline tone curves via `scipy.interpolate.CubicSpline`
 - [x] P1: Subtractive saturation (filmic density emulation in Oklab)
-- [ ] P1: Chromatic adaptation white balance (CAT02 via `colour-science`)
+- [x] P1: Chromatic adaptation white balance (CAT02 via `colour-science`)
 - [x] P2: Guided filter mask refinement (`cv2.ximgproc.guidedFilter`)
 - [x] P2: Frequency separation for skin grading
 - [x] P2: CLAHE in Oklab for flat/muddy images

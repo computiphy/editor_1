@@ -269,6 +269,107 @@ def apply_halation(image: np.ndarray, intensity: float = 0.3,
 
 
 # ────────────────────────────────────────────────────────────────
+# P1: CAT02 Chromatic Adaptation White Balance
+# ────────────────────────────────────────────────────────────────
+
+# CIE xy chromaticity coordinates for common illuminants
+_ILLUMINANT_XY = None  # Lazy-loaded from colour-science
+
+
+def _get_illuminant_xy(illuminant) -> np.ndarray:
+    """
+    Resolve an illuminant specification to CIE xy chromaticity coords.
+
+    Accepts:
+      - str: CIE illuminant name ("A", "D65", "FL2", etc.)
+      - int/float: Color temperature in Kelvin (2700, 5500, 6500, etc.)
+
+    Returns:
+        np.ndarray of shape (2,) — CIE xy coordinates.
+    """
+    import colour
+
+    if isinstance(illuminant, (int, float)):
+        # Convert Kelvin to CIE xy via Planckian locus
+        # CCT_to_xy supports the full range including tungsten (2700K)
+        return colour.temperature.CCT_to_xy(illuminant)
+
+    # String illuminant name — look up in CIE tables
+    observer = 'CIE 1931 2 Degree Standard Observer'
+    table = colour.CCS_ILLUMINANTS[observer]
+
+    if illuminant in table:
+        return table[illuminant]
+
+    raise ValueError(
+        f"Unknown illuminant '{illuminant}'. "
+        f"Available: {list(table.keys())[:10]}... or use Kelvin (e.g., 6500)"
+    )
+
+
+def chromatic_adapt_cat02(image: np.ndarray,
+                          source_illuminant="A",
+                          target_illuminant="D65") -> np.ndarray:
+    """
+    Apply CAT02 chromatic adaptation to correct white balance.
+
+    This models how the human visual system adapts to different light
+    sources, mathematically transforming colors as if the scene were lit
+    by a perfect D65 (daylight) source. Unlike simple R/B channel
+    shifting, CAT02 correctly preserves skin tones and handles extreme
+    color casts (tungsten, fluorescent) without corruption.
+
+    Args:
+        image: float32 array (H, W, 3) in sRGB [0-1].
+        source_illuminant: The illuminant the photo was taken under.
+            Can be a CIE name ("A", "D50", "D65", "FL2") or Kelvin temp (2700, 6500).
+        target_illuminant: The target illuminant to adapt to.
+            Usually "D65" (daylight). Can also be Kelvin.
+
+    Returns:
+        float32 array (H, W, 3) in sRGB [0-1], white-balanced.
+    """
+    import colour
+
+    # 1. Resolve illuminants to CIE xy chromaticity coordinates
+    source_xy = _get_illuminant_xy(source_illuminant)
+    target_xy = _get_illuminant_xy(target_illuminant)
+
+    # 2. Convert xy → XYZ white points (Y=1 normalization)
+    source_XYZ = colour.xy_to_XYZ(source_xy)
+    target_XYZ = colour.xy_to_XYZ(target_xy)
+
+    # 3. sRGB → Linear sRGB → CIE XYZ
+    linear = srgb_to_linear(image)
+
+    shape = linear.shape
+    pixels = linear.reshape(-1, 3).astype(np.float64)
+
+    # sRGB to XYZ (D65-referenced matrix from IEC 61966-2-1)
+    M_srgb_to_xyz = np.array([
+        [0.4124564, 0.3575761, 0.1804375],
+        [0.2126729, 0.7151522, 0.0721750],
+        [0.0193339, 0.1191920, 0.9503041],
+    ], dtype=np.float64)
+
+    M_xyz_to_srgb = np.linalg.inv(M_srgb_to_xyz)
+
+    XYZ = pixels @ M_srgb_to_xyz.T
+
+    # 4. Apply Von Kries CAT02 adaptation
+    XYZ_adapted = colour.adaptation.chromatic_adaptation_VonKries(
+        XYZ, source_XYZ, target_XYZ, transform='CAT02'
+    )
+
+    # 5. XYZ → Linear sRGB → sRGB
+    linear_adapted = XYZ_adapted @ M_xyz_to_srgb.T
+    linear_adapted = linear_adapted.reshape(shape).astype(np.float32)
+    linear_adapted = np.clip(linear_adapted, 0.0, 1.0)
+
+    return linear_to_srgb(linear_adapted).astype(np.float32)
+
+
+# ────────────────────────────────────────────────────────────────
 # P2: Guided Filter Mask Refinement
 # ────────────────────────────────────────────────────────────────
 

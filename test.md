@@ -72,3 +72,10 @@ This file tracks the TDD progress, rationale for each test, and current status.
 | `test_grain_not_gaussian` | Grain has spatial correlation (not white noise). | ✅ PASSED | P3: Organic "clumpy" structure. |
 | `test_grain_deterministic` | Same seed produces same grain. | ✅ PASSED | P3: Reproducible results. |
 | `test_grain_output_range` | Grain output stays in [0, 1]. | ✅ PASSED | P3: No clipping/overflow. |
+| `test_tungsten_to_daylight_reduces_red` | CAT02 A→D65 reduces red, boosts blue. | ✅ PASSED | P1: Tungsten cast correction. |
+| `test_tungsten_grey_becomes_more_neutral` | CAT02 reduces warm (R-B) imbalance. | ✅ PASSED | P1: Grey card neutralization. |
+| `test_daylight_to_daylight_is_identity` | CAT02 D65→D65 is identity (<0.02 error). | ✅ PASSED | P1: No-op stability. |
+| `test_fluorescent_to_daylight_reduces_green` | CAT02 FL2→D65 reduces green dominance. | ✅ PASSED | P1: Fluorescent correction. |
+| `test_output_shape_and_dtype` | CAT02 output matches shape and is float32. | ✅ PASSED | P1: Integration stability. |
+| `test_output_range_clamped` | CAT02 output clamped to [0, 1]. | ✅ PASSED | P1: No overflow. |
+| `test_temperature_kelvin_api` | CAT02 accepts Kelvin (2700K, 6500K). | ✅ PASSED | P1: User-friendly API. |
