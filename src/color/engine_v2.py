@@ -269,6 +269,103 @@ def apply_halation(image: np.ndarray, intensity: float = 0.3,
 
 
 # ────────────────────────────────────────────────────────────────
+# P2: Guided Filter Mask Refinement
+# ────────────────────────────────────────────────────────────────
+
+def refine_mask_guided(mask: np.ndarray, guide: np.ndarray,
+                       radius: int = 8, eps: float = 0.01) -> np.ndarray:
+    """
+    Refine a rough AI segmentation mask using a guided filter.
+
+    The original image acts as the "guide," forcing the soft mask to
+    snap to the high-frequency edges of the actual photo. This eliminates
+    the "halo" artifacts that appear when, e.g., the sky is darkened
+    and the mask edge doesn't perfectly follow the building boundary.
+
+    Args:
+        mask: float32 array (H, W) — rough mask from AI segmentation.
+        guide: float32 array (H, W, 3) — the original image (sRGB).
+        radius: Filter radius (larger = smoother, but slower).
+        eps: Regularization (smaller = follows edges more closely).
+
+    Returns:
+        float32 array (H, W) — refined mask, clamped to [0, 1].
+    """
+    import cv2
+
+    # Convert guide to uint8 for OpenCV (guidedFilter can work with float
+    # but uint8 guide gives better edge detection)
+    guide_u8 = np.clip(guide * 255, 0, 255).astype(np.uint8)
+
+    # guidedFilter expects the mask as a single-channel float32
+    mask_f32 = mask.astype(np.float32)
+
+    refined = cv2.ximgproc.guidedFilter(
+        guide=guide_u8,
+        src=mask_f32,
+        radius=radius,
+        eps=eps,
+    )
+
+    return np.clip(refined, 0.0, 1.0).astype(np.float32)
+
+
+# ────────────────────────────────────────────────────────────────
+# P3: Luminance-Mapped Procedural Film Grain
+# ────────────────────────────────────────────────────────────────
+
+def apply_perlin_grain(image: np.ndarray, amount: float = 0.3,
+                       seed: int = 42, scale: float = 3.0) -> np.ndarray:
+    """
+    Apply spatially correlated (Perlin-like) film grain that varies
+    with luminance: heavier in shadows/midtones, nearly absent in
+    pure highlights — matching real film stock behavior.
+
+    Unlike np.random.normal (Gaussian white noise, which looks like
+    digital sensor noise), this generates noise at reduced resolution
+    and upscales with bilinear interpolation, creating the organic
+    "clumpy" structure of real 35mm/16mm film grain.
+
+    Args:
+        image: float32 array (H, W, 3) in sRGB [0-1].
+        amount: Intensity of the grain effect.
+        seed: Random seed for reproducibility.
+        scale: Grain size. Higher = larger grain structure.
+              3.0 ≈ 35mm film, 5.0 ≈ 16mm film, 1.0 ≈ digital noise.
+
+    Returns:
+        float32 array (H, W, 3) in sRGB [0-1].
+    """
+    import cv2
+
+    h, w = image.shape[:2]
+    rng = np.random.RandomState(seed)
+
+    # Generate noise at reduced resolution (creates spatial correlation)
+    grain_h = max(int(h / scale), 2)
+    grain_w = max(int(w / scale), 2)
+    noise = rng.standard_normal((grain_h, grain_w)).astype(np.float32)
+
+    # Upscale with bilinear interpolation → produces smooth, organic grain
+    noise = cv2.resize(noise, (w, h), interpolation=cv2.INTER_LINEAR)
+
+    # Luminance-weighted: grain is heavier in shadows, lighter in highlights
+    luminance = (0.2126 * image[:, :, 0] +
+                 0.7152 * image[:, :, 1] +
+                 0.0722 * image[:, :, 2])
+
+    # Weight curve: maximum at L=0.3 (shadow/midtone), fading in highlights
+    grain_weight = np.clip(1.0 - luminance, 0.0, 1.0)
+    grain_weight = grain_weight ** 0.6  # Soften the falloff
+
+    # Apply grain to all three channels (film grain is monochromatic)
+    scaled_noise = noise * grain_weight * amount * 0.1
+    result = image + scaled_noise[:, :, np.newaxis]
+
+    return np.clip(result, 0.0, 1.0).astype(np.float32)
+
+
+# ────────────────────────────────────────────────────────────────
 # SOTA Color Grading Engine V2
 # ────────────────────────────────────────────────────────────────
 

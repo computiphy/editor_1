@@ -64,3 +64,11 @@ This file tracks the TDD progress, rationale for each test, and current status.
 | `test_halation_only_affects_red` | Halation primarily changes the red channel. | ✅ PASSED | P3: Physically correct scattering. |
 | `test_halation_zero_intensity` | Zero intensity halation is identity. | ✅ PASSED | P3: Graceful disable. |
 | `test_halation_output_range` | Halation output stays in [0, 1]. | ✅ PASSED | P3: No clipping/overflow. |
+| `test_guided_filter_snaps_to_edges` | Guided filter refines mask toward real image edges. | ✅ PASSED | P2: Eliminates halo artifacts. |
+| `test_guided_filter_preserves_uniform_regions` | Guided filter preserves mask in uniform areas. | ✅ PASSED | P2: No false mask erosion. |
+| `test_guided_filter_output_shape` | Guided filter output matches mask shape. | ✅ PASSED | P2: Shape stability. |
+| `test_guided_filter_output_range` | Guided filter output clamped to [0, 1]. | ✅ PASSED | P2: No overflow. |
+| `test_grain_heavier_in_shadows` | Film grain is stronger in shadows than highlights. | ✅ PASSED | P3: Authentic film behavior. |
+| `test_grain_not_gaussian` | Grain has spatial correlation (not white noise). | ✅ PASSED | P3: Organic "clumpy" structure. |
+| `test_grain_deterministic` | Same seed produces same grain. | ✅ PASSED | P3: Reproducible results. |
+| `test_grain_output_range` | Grain output stays in [0, 1]. | ✅ PASSED | P3: No clipping/overflow. |
