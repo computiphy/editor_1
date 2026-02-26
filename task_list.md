@@ -34,9 +34,9 @@
 - [x] P1: Subtractive saturation (filmic density emulation in Oklab)
 - [ ] P1: Chromatic adaptation white balance (CAT02 via `colour-science`)
 - [ ] P2: Guided filter mask refinement (`cv2.ximgproc.guidedFilter`)
-- [ ] P2: Frequency separation for skin grading
-- [ ] P2: CLAHE in Oklab for flat/muddy images
-- [ ] P3: Halation (red-channel scattering) optical effect
+- [x] P2: Frequency separation for skin grading
+- [x] P2: CLAHE in Oklab for flat/muddy images
+- [x] P3: Halation (red-channel scattering) optical effect
 - [ ] P3: Luminance-mapped film grain (Perlin-style, not Gaussian)
 - [ ] Re-tune all 19 presets for the new Oklab pipeline
 - [ ] Update README, test.md, and color_theory.md

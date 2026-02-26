@@ -127,6 +127,148 @@ def subtractive_saturate(oklab: np.ndarray, factor: float = 1.0) -> np.ndarray:
 
 
 # ────────────────────────────────────────────────────────────────
+# P2: CLAHE in Oklab
+# ────────────────────────────────────────────────────────────────
+
+def apply_clahe_oklab(image: np.ndarray, clip_limit: float = 2.0,
+                      grid_size: int = 8) -> np.ndarray:
+    """
+    Apply Contrast Limited Adaptive Histogram Equalization to the Oklab
+    L channel. This dramatically improves flat, muddy, or poorly lit images
+    without over-saturating colors (unlike CLAHE in RGB or even CIELAB).
+
+    Args:
+        image: float32 array (H, W, 3) in sRGB [0-1].
+        clip_limit: CLAHE clip limit (higher = more contrast).
+        grid_size: CLAHE tile grid size.
+
+    Returns:
+        float32 array (H, W, 3) in sRGB [0-1] with enhanced contrast.
+    """
+    import cv2
+
+    # Convert to Oklab
+    oklab = srgb_to_oklab(image)
+
+    # Extract L channel, scale to [0, 255] for OpenCV CLAHE (which needs uint8)
+    L = oklab[:, :, 0]
+    L_u8 = np.clip(L * 255, 0, 255).astype(np.uint8)
+
+    # Apply CLAHE
+    clahe = cv2.createCLAHE(clipLimit=clip_limit,
+                            tileGridSize=(grid_size, grid_size))
+    L_enhanced = clahe.apply(L_u8)
+
+    # Map back to float32 [0, 1]
+    oklab[:, :, 0] = L_enhanced.astype(np.float32) / 255.0
+
+    # Convert back to sRGB
+    return np.clip(oklab_to_srgb(oklab), 0.0, 1.0).astype(np.float32)
+
+
+# ────────────────────────────────────────────────────────────────
+# P2: Frequency Separation for Skin Grading
+# ────────────────────────────────────────────────────────────────
+
+def frequency_separate(image: np.ndarray,
+                       blur_radius: int = 5) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Split an image into low-frequency (color/tone) and high-frequency
+    (texture/detail) components.
+
+    The key insight: modify only the low-frequency map for color correction
+    on skin, then recombine with the untouched high-frequency. This fixes
+    skin color casts while preserving 100% of pore/wrinkle texture,
+    preventing the "plastic AI skin" look.
+
+    Args:
+        image: float32 array (H, W, 3) in [0-1].
+        blur_radius: Gaussian blur kernel size (must be odd).
+
+    Returns:
+        (low_freq, high_freq) tuple of float32 arrays.
+        low + high = original (within floating point precision).
+    """
+    import cv2
+
+    # Ensure blur_radius is odd
+    ksize = blur_radius * 2 + 1
+
+    # Low frequency = Gaussian blur (smooth color/tone information)
+    low = cv2.GaussianBlur(image, (ksize, ksize), 0).astype(np.float32)
+
+    # High frequency = Original minus Low (texture, pores, wrinkles)
+    high = (image - low).astype(np.float32)
+
+    return low, high
+
+
+def frequency_merge(low: np.ndarray, high: np.ndarray) -> np.ndarray:
+    """
+    Recombine low-frequency and high-frequency components.
+
+    Args:
+        low: float32 low-frequency (color/tone) component.
+        high: float32 high-frequency (texture) component.
+
+    Returns:
+        float32 reconstructed image.
+    """
+    return np.clip(low + high, 0.0, 1.0).astype(np.float32)
+
+
+# ────────────────────────────────────────────────────────────────
+# P3: Halation (Red-Channel Scattering)
+# ────────────────────────────────────────────────────────────────
+
+def apply_halation(image: np.ndarray, intensity: float = 0.3,
+                   radius: int = 15, threshold: float = 0.7) -> np.ndarray:
+    """
+    Emulate film halation — the red glow around bright highlights caused
+    by light scattering through the film base and reflecting off the
+    anti-halation backing layer.
+
+    Instead of generic bloom (which brightens all channels equally),
+    this isolates high-luminance pixels, blurs ONLY the red channel,
+    and composites it using an optical screen blend.
+
+    Args:
+        image: float32 array (H, W, 3) in sRGB [0-1].
+        intensity: Strength of the halation effect (0 = off).
+        radius: Blur radius for the red scatter.
+        threshold: Luminance threshold for highlight detection.
+
+    Returns:
+        float32 array (H, W, 3) in sRGB [0-1].
+    """
+    if intensity <= 0:
+        return image
+
+    import cv2
+
+    # 1. Compute luminance
+    luminance = 0.2126 * image[:, :, 0] + 0.7152 * image[:, :, 1] + 0.0722 * image[:, :, 2]
+
+    # 2. Create highlight mask (only bright areas scatter)
+    highlight_mask = np.clip((luminance - threshold) / (1.0 - threshold + 1e-6), 0, 1)
+
+    # 3. Extract the red channel of highlights only
+    red_highlights = image[:, :, 0] * highlight_mask
+
+    # 4. Blur the red highlights (simulates physical light scatter)
+    ksize = radius * 2 + 1
+    red_scattered = cv2.GaussianBlur(red_highlights, (ksize, ksize), 0)
+
+    # 5. Screen blend: result = 1 - (1 - base) * (1 - overlay)
+    # This ensures additive glow without exceeding 1.0
+    result = image.copy()
+    overlay = red_scattered * intensity
+    result[:, :, 0] = 1.0 - (1.0 - result[:, :, 0]) * (1.0 - overlay)
+
+    return np.clip(result, 0.0, 1.0).astype(np.float32)
+
+
+# ────────────────────────────────────────────────────────────────
 # SOTA Color Grading Engine V2
 # ────────────────────────────────────────────────────────────────
 

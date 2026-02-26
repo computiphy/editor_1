@@ -53,3 +53,14 @@ This file tracks the TDD progress, rationale for each test, and current status.
 | `test_subtractive_darkens_saturated_colors` | Subtractive saturation makes saturated colors darker. | ✅ PASSED | P1: Filmic density emulation — the "film look". |
 | `test_subtractive_preserves_neutral` | Subtractive saturation barely affects grey/neutral colors. | ✅ PASSED | P1: Neutral stability. |
 | `test_all_presets_run_v2` | All 19 presets run through V2 without errors. | ✅ PASSED | Full backward compatibility smoke test. |
+| `test_clahe_increases_contrast` | CLAHE in Oklab increases dynamic range of flat images. | ✅ PASSED | P2: Fixes poorly lit reception halls. |
+| `test_clahe_preserves_color` | CLAHE modifies lightness without shifting hue. | ✅ PASSED | P2: Oklab prevents the CIELAB "blue shift" artifact. |
+| `test_clahe_output_shape_and_dtype` | CLAHE output is correct shape and float32. | ✅ PASSED | P2: Integration stability. |
+| `test_clahe_handles_already_contrasty` | CLAHE doesn't blow out well-exposed images. | ✅ PASSED | P2: Safety for good images. |
+| `test_separation_preserves_texture` | Freq separation keeps pore/wrinkle detail after color fix. | ✅ PASSED | P2: Anti-plastic-skin guarantee. |
+| `test_low_freq_is_smooth` | Low-frequency component is smoother than original. | ✅ PASSED | P2: Correct decomposition. |
+| `test_roundtrip_identity` | Separate → merge without changes = original. | ✅ PASSED | P2: Zero-loss roundtrip. |
+| `test_halation_adds_red_glow` | Halation adds red glow near bright highlights. | ✅ PASSED | P3: Film-authentic optical effect. |
+| `test_halation_only_affects_red` | Halation primarily changes the red channel. | ✅ PASSED | P3: Physically correct scattering. |
+| `test_halation_zero_intensity` | Zero intensity halation is identity. | ✅ PASSED | P3: Graceful disable. |
+| `test_halation_output_range` | Halation output stays in [0, 1]. | ✅ PASSED | P3: No clipping/overflow. |
