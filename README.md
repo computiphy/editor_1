@@ -167,43 +167,40 @@ restoration:
 ### 4. Color Grading (AI Colorist)
 
 **Module:** `src/color/engine.py` (Legacy V1) and `src/color/engine_v2.py` (SOTA V2)
-**What it does:** Applies professional color grading presets to images. The system implements a complete digital darkroom with per-channel HSL adjustments, tone curves, split toning, vignette, and film grain emulation.
 
-#### Engine Versions
+The Wedding AI Pipeline features a professional-grade color engine designed to compete with high-end desktop software like Capture One and DaVinci Resolve.
 
-| Feature | Legacy V1 (`engine.py`) | SOTA V2 (`engine_v2.py`) |
-|:--------|:------------------------|:-------------------------|
-| **Internal Precision** | 8-bit (uint8 roundtrips between stages) | 32-bit float throughout |
-| **Color Space** | OpenCV HSV + CIELAB | **Oklab** (perceptually uniform) |
-| **Tone Curves** | Gamma/lift/ceiling formula | **Cubic spline** (4096-point LUT) |
-| **Saturation** | Additive (colors get brighter) | **Subtractive/filmic** (colors get denser) |
-| **White Balance** | R/B channel addition | **Multiplicative** in linear space |
-| **Exposure** | Gamma-encoded math | **Linear-space** (physically correct) |
-| **Grain** | Gaussian noise | **Luminance-mapped** (heavier in shadows) |
-| **Presets** | All 19 presets | Same 19 presets, re-tuned for Oklab |
+#### 🚀 SOTA Color Engine V2
+The V2 engine represents the pinnacle of digital color science, moving away from standard RGB/HSV math to a physically accurate, perceptually uniform pipeline.
 
-**Why Oklab?** CIELAB and HSV are not perceptually uniform — shifting the hue of "green" in HSV causes luminance to change unpredictably. Oklab solves this: a 10° hue rotation produces the same *perceived* change regardless of the starting color. This is critical for operations like "shift greens → teal" (cinematic preset) where legacy HSV introduces unwanted brightness shifts.
+| Feature | Technical Implementation | Rationale |
+|:--------|:-------------------------|:----------|
+| **Color Space** | **Oklab** (Internal Working Space) | Perceptually uniform. Hue rotations do not cause unwanted brightness or saturation shifts. |
+| **Bit Depth** | **32-bit Float** (End-to-end) | Eliminates rounding errors and "banding" common in 8-bit uint8 pipelines. |
+| **Working Space** | **ACEScg** (Scene-Linear) | Industry-standard wide gamut space used in Hollywood VFX. Preserves highlight detail and color accuracy. |
+| **Tone Curves** | **Cubic Spline** (4096-point) | Replaces simple gamma with smooth, precise contrast control across the entire luminance range. |
+| **Saturation** | **Subtractive (Filmic)** | Emulates physical film dyes. Colors become *denser* and *richer* as they saturate, rather than just "brighter." |
+| **3D LUTs** | **Tetrahedral Interpolation** | Supports `.cube` files with the most precise interpolation method available (superior to trilinear). |
+| **Grain** | **Luminance-Mapped Perlin** | Spatially correlated "clumpy" grain that varies by brightness — absence in highlights, rich in shadows. |
+| **Effects** | **Halation & Red-Scatter** | Emulates the red glowing edge around highlights seen in traditional film stocks. |
 
-**Why Subtractive Saturation?** In the real world, film dyes absorb light. Boosting saturation on Kodak Portra makes reds *deeper* and *darker*. Digital additive math does the opposite — making reds *brighter* and *neon*. The V2 engine emulates film density by proportionally decreasing Oklab lightness when chroma increases, producing the authentic "filmic" look.
-
-#### Processing Pipeline — SOTA V2 (in order):
-
+#### Processing Pipeline — SOTA V2:
 ```
- 1. Input Normalization (uint8 → float32 [0-1])
- 2. sRGB → Linear (gamma decode)
- 3. White Balance (Temperature/Tint — linear space, multiplicative)
- 4. Exposure (linear space — mathematically correct)
- 5. Linear → Oklab (perceptually uniform color space)
- 6. Tone Curve (cubic spline on Oklab L channel — 4096-point LUT)
- 7. Contrast (S-curve on Oklab L channel)
- 8. Per-Channel H/S/L (Oklab-based hue targeting)
- 9. Split Toning (Oklab a,b channels)
-10. Subtractive Saturation (filmic density emulation)
-11. Vibrance (chroma-aware boost in Oklab)
-12. Oklab → sRGB
-13. Vignette (radial darkening)
-14. Grain (luminance-mapped, heavier in shadows)
-15. Output (float32 → uint8)
+ 1. Input Norm ─────── uint8 → float32 [0-1]
+ 2. CAT02 WB ───────── Chromatic adaptation (physically correct white balance)
+ 3. ACES Transform ─── Into ACEScg Wide-Gamut Linear Space
+ 4. Exposure ───────── Mathematically correct gain in linear space
+ 5. Oklab ──────────── Perceptually uniform working space
+ 6. Tone Curve ─────── Cubic Spline (4096-pt LUT) applied to L channel
+ 7. Contrast ───────── S-curve in Oklab L
+ 8. Per-Channel HSL ── Target specific hues (e.g., Greens → Emerald)
+ 9. Split Toning ───── Colorize shadows and highlights independently
+10. Filmic Sat ─────── Subtractive saturation boost (adds density)
+11. 3D LUT ─────────── Tetrahedral .cube application (Optional)
+12. Halation ───────── Highlight red-channel scattering (Bloom)
+13. Vignette ───────── Radial falloff
+14. Perlin Grain ───── Luminance-weighted procedural texture
+15. Output ─────────── Final sRGB Gamma encode → uint8
 ```
 
 #### Available Presets (19 total):
