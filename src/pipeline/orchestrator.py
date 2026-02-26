@@ -45,8 +45,8 @@ class WeddingPipeline:
         input_path = Path(self.config.pipeline.input_dir)
         photo_paths_set = set()
         for fmt in self.config.pipeline.input_formats:
-            photo_paths_set.update(input_path.glob(f"*.{fmt}"))
-            photo_paths_set.update(input_path.glob(f"*.{fmt.upper()}"))
+            photo_paths_set.update(input_path.rglob(f"*.{fmt}"))
+            photo_paths_set.update(input_path.rglob(f"*.{fmt.upper()}"))
         
         photo_paths = sorted(list(photo_paths_set))
 
@@ -179,17 +179,23 @@ class WeddingPipeline:
                     
                     total_graded += 1
                 
-                # Save graded image to final/
-                save_image(img, str(final_dir / s.path.name))
+                # Save graded image to final/ (preserving subfolder structure)
+                rel_path = s.path.relative_to(input_path)
+                target_save_path = final_dir / rel_path
+                target_save_path.parent.mkdir(parents=True, exist_ok=True)
+                save_image(img, str(target_save_path))
 
                 # Background Removal (on the already-graded image)
                 if self.config.background_removal.enabled and bg_remover:
                     try:
                         rgba = bg_remover.remove_background(img)
-                        # Save as PNG to preserve transparency
-                        cutout_name = Path(s.path).stem + ".png"
+                        # Save as PNG to preserve transparency (same subfolder structure)
+                        cutout_name = rel_path.with_suffix(".png")
+                        target_cutout_path = cutouts_dir / cutout_name
+                        target_cutout_path.parent.mkdir(parents=True, exist_ok=True)
+                        
                         pil_rgba = PILImage.fromarray(rgba)
-                        pil_rgba.save(str(cutouts_dir / cutout_name), "PNG")
+                        pil_rgba.save(str(target_cutout_path), "PNG")
                         total_cutouts += 1
                     except Exception as bg_err:
                         print(f"Error removing background for {s.path}: {bg_err}")

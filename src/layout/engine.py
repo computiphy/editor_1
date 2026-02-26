@@ -41,7 +41,8 @@ class AlbumLayoutEngine:
                  export_format: str = "jpeg",
                  export_quality: int = 95,
                  ai_style: str = "classic",
-                 ai_seed: int = 42):
+                 ai_seed: int = 42,
+                 fold_margin: int = 60):
 
         self.mode = mode
         self.page_width, self.page_height = page_size
@@ -51,6 +52,7 @@ class AlbumLayoutEngine:
         self.gutter = gutter
         self.use_cutouts = use_cutouts
         self.ai_style = ai_style
+        self.fold_margin = fold_margin  # Exclusion zone width at center fold
 
         # Initialize submodules
         self.registry = TemplateRegistry()
@@ -62,6 +64,7 @@ class AlbumLayoutEngine:
             page_height=self.page_height,
             quality=export_quality,
             output_format=export_format,
+            dpi=dpi,
         )
         self.ai_generator = AILayoutGenerator(seed=ai_seed)
 
@@ -93,11 +96,12 @@ class AlbumLayoutEngine:
 
         print(f"    Found {len(images)} images for album")
 
-        # Build cutout lookup
+        # Build cutout lookup (using relative paths to handle subfolders correctly)
         cutout_map = {}
         if self.use_cutouts and cutouts_dir and cutouts_dir.exists():
-            for f in cutouts_dir.glob("*.png"):
-                cutout_map[f.stem] = f
+            for f in cutouts_dir.rglob("*.png"):
+                rel_path = f.relative_to(cutouts_dir).with_suffix("")
+                cutout_map[str(rel_path)] = f
             print(f"    Found {len(cutout_map)} cutouts")
 
         # 2. Determine images per page
@@ -118,6 +122,7 @@ class AlbumLayoutEngine:
                 page_number=page_idx + 1,
                 image_paths=chunk,
                 cutout_map=cutout_map,
+                final_dir=final_dir
             )
             pages.append(page)
 
@@ -142,11 +147,12 @@ class AlbumLayoutEngine:
             return []
 
         extensions = {".jpg", ".jpeg", ".png"}
-        images = sorted([
-            f for f in final_dir.iterdir()
-            if f.suffix.lower() in extensions
-        ])
-        return images
+        images = []
+        for ext in extensions:
+            images.extend(list(final_dir.rglob(f"*{ext}")))
+            images.extend(list(final_dir.rglob(f"*{ext.upper()}")))
+        
+        return sorted(list(set(images)))
 
     def _compute_images_per_page(self, total: int) -> int:
         """Determine images per page using the heuristic from FRD §5.3."""
@@ -172,7 +178,7 @@ class AlbumLayoutEngine:
         return chunks
 
     def _generate_page(self, page_number: int, image_paths: List[Path],
-                       cutout_map: Dict[str, Path]) -> PageLayout:
+                       cutout_map: Dict[str, Path], final_dir: Path) -> PageLayout:
         """
         Generate a PageLayout for a set of images.
         Routes to template, AI, or hybrid generator based on mode.
@@ -257,7 +263,14 @@ class AlbumLayoutEngine:
             cell_w = max(cell_w, 100)
             cell_h = max(cell_h, 100)
 
-            cutout_path = cutout_map.get(img_path.stem)
+            # ── Enforce fold exclusion zone ────────────────────
+            cell_x, cell_w = self._enforce_fold_exclusion(
+                cell_x, cell_w
+            )
+
+            # Match cutout using path relative to final_dir
+            rel_img = img_path.relative_to(final_dir).with_suffix("")
+            cutout_path = cutout_map.get(str(rel_img))
 
             cells.append(CellPlacement(
                 image_path=img_path,
@@ -277,3 +290,45 @@ class AlbumLayoutEngine:
             layout_mode=layout_mode,
             template_name=template_name,
         )
+
+    def _enforce_fold_exclusion(self, cell_x: int, cell_w: int) -> Tuple[int, int]:
+        """
+        Ensure a cell does not cross the middle fold of the album spread.
+
+        The fold is at page_width / 2. An exclusion zone of `fold_margin`
+        pixels on each side of the fold is enforced. If a cell spans
+        the fold, it is pushed to whichever side contains more of its area.
+
+        Returns:
+            (adjusted_x, adjusted_w)
+        """
+        if self.fold_margin <= 0:
+            return cell_x, cell_w
+
+        fold_center = self.page_width // 2
+        fold_left = fold_center - self.fold_margin
+        fold_right = fold_center + self.fold_margin
+
+        cell_right = cell_x + cell_w
+
+        # Cell is entirely on the left side — no issue
+        if cell_right <= fold_left:
+            return cell_x, cell_w
+
+        # Cell is entirely on the right side — no issue
+        if cell_x >= fold_right:
+            return cell_x, cell_w
+
+        # Cell crosses the fold zone — decide which side has more area
+        left_portion = max(0, fold_left - cell_x)
+        right_portion = max(0, cell_right - fold_right)
+
+        if left_portion >= right_portion:
+            # More area on the left — shrink to end at fold_left
+            new_w = max(fold_left - cell_x, 100)
+            return cell_x, new_w
+        else:
+            # More area on the right — push start to fold_right
+            new_x = fold_right
+            new_w = max(cell_right - fold_right, 100)
+            return new_x, new_w

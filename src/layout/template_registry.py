@@ -44,11 +44,11 @@ BUNDLED_TEMPLATES: List[Dict] = [
     },
     {
         "name": "split_horizontal",
-        "description": "Two images side by side",
+        "description": "Two images side by side with fold gap",
         "image_count": 2,
         "cells": [
-            {"x": 0.0, "y": 0.0, "w": 0.50, "h": 1.0},
-            {"x": 0.50, "y": 0.0, "w": 0.50, "h": 1.0},
+            {"x": 0.0, "y": 0.0, "w": 0.47, "h": 1.0},
+            {"x": 0.53, "y": 0.0, "w": 0.47, "h": 1.0},
         ]
     },
     {
@@ -92,13 +92,13 @@ BUNDLED_TEMPLATES: List[Dict] = [
     },
     {
         "name": "grid_2x2",
-        "description": "Four equal quadrants",
+        "description": "Four quadrants with fold gap",
         "image_count": 4,
         "cells": [
-            {"x": 0.0,  "y": 0.0,  "w": 0.50, "h": 0.50},
-            {"x": 0.50, "y": 0.0,  "w": 0.50, "h": 0.50},
-            {"x": 0.0,  "y": 0.50, "w": 0.50, "h": 0.50},
-            {"x": 0.50, "y": 0.50, "w": 0.50, "h": 0.50},
+            {"x": 0.0,  "y": 0.0,  "w": 0.47, "h": 0.50},
+            {"x": 0.53, "y": 0.0,  "w": 0.47, "h": 0.50},
+            {"x": 0.0,  "y": 0.50, "w": 0.47, "h": 0.50},
+            {"x": 0.53, "y": 0.50, "w": 0.47, "h": 0.50},
         ]
     },
     {
@@ -114,11 +114,11 @@ BUNDLED_TEMPLATES: List[Dict] = [
     },
     {
         "name": "grid_5_mosaic",
-        "description": "Five-image mosaic: 2 top, 3 bottom",
+        "description": "Five-image mosaic: 2 top, 3 bottom with fold gap",
         "image_count": 5,
         "cells": [
-            {"x": 0.0,   "y": 0.0,  "w": 0.50,  "h": 0.50},
-            {"x": 0.50,  "y": 0.0,  "w": 0.50,  "h": 0.50},
+            {"x": 0.0,   "y": 0.0,  "w": 0.47,  "h": 0.50},
+            {"x": 0.53,  "y": 0.0,  "w": 0.47,  "h": 0.50},
             {"x": 0.0,   "y": 0.50, "w": 0.333, "h": 0.50},
             {"x": 0.333, "y": 0.50, "w": 0.334, "h": 0.50},
             {"x": 0.667, "y": 0.50, "w": 0.333, "h": 0.50},
@@ -156,7 +156,7 @@ class TemplateRegistry:
 
         # Load user templates from directory
         if user_template_dir and user_template_dir.exists():
-            for f in sorted(user_template_dir.glob("*.json")):
+            for f in sorted(user_template_dir.rglob("*.json")):
                 try:
                     with open(f) as fp:
                         t_data = json.load(fp)

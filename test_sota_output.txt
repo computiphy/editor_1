@@ -1,0 +1,22 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.11.0, pytest-9.0.2, pluggy-1.6.0 -- C:\Users\joylo\AppData\Local\Programs\Python\Python311\python.exe
+cachedir: .pytest_cache
+rootdir: D:\studio\tools\vibecoding\editor_1\wedding_ai_pipeline
+configfile: pyproject.toml
+plugins: mock-3.15.1
+collecting ... collected 12 items
+
+tests/test_sota_engine.py::TestFloat32Pipeline::test_engine_accepts_float32_input PASSED [  8%]
+tests/test_sota_engine.py::TestFloat32Pipeline::test_engine_accepts_uint8_input PASSED [ 16%]
+tests/test_sota_engine.py::TestFloat32Pipeline::test_output_is_uint8 PASSED [ 25%]
+tests/test_sota_engine.py::TestFloat32Pipeline::test_no_uint8_roundtrip_internally PASSED [ 33%]
+tests/test_sota_engine.py::TestCubicSplineToneCurves::test_spline_curve_identity PASSED [ 41%]
+tests/test_sota_engine.py::TestCubicSplineToneCurves::test_spline_curve_lifted_shadows PASSED [ 50%]
+tests/test_sota_engine.py::TestCubicSplineToneCurves::test_spline_curve_rolled_highlights PASSED [ 58%]
+tests/test_sota_engine.py::TestCubicSplineToneCurves::test_spline_curve_s_shape PASSED [ 66%]
+tests/test_sota_engine.py::TestCubicSplineToneCurves::test_spline_lut_size PASSED [ 75%]
+tests/test_sota_engine.py::TestSubtractiveSaturation::test_subtractive_darkens_saturated_colors PASSED [ 83%]
+tests/test_sota_engine.py::TestSubtractiveSaturation::test_subtractive_preserves_neutral PASSED [ 91%]
+tests/test_sota_engine.py::TestBackwardCompatibility::test_all_presets_run_v2 PASSED [100%]
+
+============================= 12 passed in 6.98s ==============================

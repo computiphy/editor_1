@@ -33,3 +33,23 @@ This file tracks the TDD progress, rationale for each test, and current status.
 | `test_layout_engine_fixed_partition` | Validates the fixed-partition layout algorithm. | ✅ PASSED | Automated album design foundation. |
 | `test_pipeline_add_step` | Ensures steps can be dynamically added to the pipeline. | ✅ PASSED | Modular architecture verified. |
 | `test_pipeline_runs_and_returns_result`| Validates the orchestrator's full execution flow from ingestion. | ✅ PASSED | End-to-end orchestration base verified. |
+| `test_srgb_to_linear_black_is_zero` | Validates sRGB→Linear gamma decode at boundary (black). | ✅ PASSED | SOTA Engine P0 foundation. |
+| `test_srgb_to_linear_white_is_one` | Validates sRGB→Linear gamma decode at boundary (white). | ✅ PASSED | SOTA Engine P0 foundation. |
+| `test_srgb_to_linear_midgrey` | Validates gamma correction: sRGB 0.5 → linear ~0.214. | ✅ PASSED | Proves gamma transfer function is correct. |
+| `test_linear_to_srgb_roundtrip` | sRGB→Linear→sRGB roundtrip must be identity within ε. | ✅ PASSED | Ensures no data loss in color space conversions. |
+| `test_white_has_L_one` | White in Oklab should have L=1.0, a=0, b=0. | ✅ PASSED | Oklab matrix correctness. |
+| `test_black_has_L_zero` | Black in Oklab should have L=0.0, a=0, b=0. | ✅ PASSED | Oklab matrix correctness. |
+| `test_red_has_positive_a` | Red in Oklab should have positive 'a' axis. | ✅ PASSED | Validates Oklab perceptual geometry. |
+| `test_oklab_roundtrip_accuracy` | sRGB→Oklab→sRGB roundtrip error must be <0.001. | ✅ PASSED | Critical for zero-degradation color grading. |
+| `test_oklab_saturation` | Oklab chroma (perceptual saturation) computation. | ✅ PASSED | Foundation for subtractive saturation. |
+| `test_oklab_hue` | Oklab hue angle computation via atan2. | ✅ PASSED | Foundation for per-channel color targeting. |
+| `test_engine_accepts_float32_input` | SOTA engine V2 must accept float32 [0-1] input. | ✅ PASSED | P0: End-to-end float32 pipeline. |
+| `test_engine_accepts_uint8_input` | SOTA engine V2 must accept uint8 for backward compat. | ✅ PASSED | Backward compatibility preserved. |
+| `test_output_is_uint8` | Final output must be uint8 for file saving. | ✅ PASSED | File I/O compatibility. |
+| `test_spline_curve_identity` | Linear spline (0,0)→(1,1) should be identity. | ✅ PASSED | P1: Cubic spline baseline. |
+| `test_spline_curve_lifted_shadows` | Lifted black point spline has lut[0]>0. | ✅ PASSED | P1: Film fade simulation. |
+| `test_spline_curve_rolled_highlights` | Rolled highlight spline has lut[-1]<1. | ✅ PASSED | P1: Highlight protection. |
+| `test_spline_curve_s_shape` | S-curve spline increases contrast correctly. | ✅ PASSED | P1: Cinematic contrast curves. |
+| `test_subtractive_darkens_saturated_colors` | Subtractive saturation makes saturated colors darker. | ✅ PASSED | P1: Filmic density emulation — the "film look". |
+| `test_subtractive_preserves_neutral` | Subtractive saturation barely affects grey/neutral colors. | ✅ PASSED | P1: Neutral stability. |
+| `test_all_presets_run_v2` | All 19 presets run through V2 without errors. | ✅ PASSED | Full backward compatibility smoke test. |

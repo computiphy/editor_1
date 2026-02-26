@@ -1,6 +1,6 @@
 pipeline:
-  name: "Creatives_layout5"
-  input_dir: "D:/studio/tools/vibecoding/sample_photos/trail_1"
+  name: "Eswar_layout_trail_5"
+  input_dir: "D:/studio/tools/vibecoding/sample_photos/creatives"
   input_formats: ["raw", "jpg", "jpeg"]
   output_base: "D:/studio/tools/vibecoding/editor_1/wedding_ai_pipeline/output"
   gpu_backend: "auto"
@@ -24,12 +24,12 @@ restoration:
     overlap: 64
 
 color_grading:
-  enabled: false
+  enabled: true
   method: "lab_statistical"
-  style: "golden_hour_portrait"               # OPTIONS: natural, cinematic, pastel, moody,
+  style: "vibrant"               # OPTIONS: natural, cinematic, pastel, moody,
                                     #          golden_hour, film_kodak, film_fuji,
                                     #          vibrant, black_and_white
-  strength: 1.0                     # 0.0 = no effect, 1.0 = full, 1.5 = max
+  strength: 1.5                     # 0.0 = no effect, 1.0 = full, 1.5 = max
   reference_image: "D:/studio/tools/vibecoding/editor_1/wedding_ai_pipeline/assets/reference_style.png"
   segmentation_enabled: true       # Set true to enable SAM-based local grading
 
@@ -38,15 +38,15 @@ background_removal:
   model: "birefnet-massive"        # BEST for weddings. Options: birefnet-portrait, birefnet-massive, bria-rmbg, u2net
 
 layout:
-  enabled: true                     # Generate album pages
+  enabled: false                     # Generate album pages
   mode: "ai"                        # template | ai | hybrid | mixed
   page_size: [7200, 4800]           # pixels [width, height] — 12"×8" at 300dpi
   dpi: 300
-  images_per_page: 0                # 0 = auto (3–6 based on total count)
+  images_per_page: 6                # 0 = auto (3–6 based on total count)
   padding: 60                       # outer margin in pixels
   gutter: 30                        # gap between cells in pixels
   use_cutouts: false                # true = composite RGBA cutouts over background
-  background_directory: "assets/backgrounds/1"
+  background_directory: "assets/backgrounds/2"
   background_strategy: "dominant"   # dominant | average
   ai_style: "magazine"              # classic | elegant | minimal | dynamic | magazine
   ai_seed: 42                       # seed for reproducibility

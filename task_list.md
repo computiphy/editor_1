@@ -27,6 +27,20 @@
 - [x] Color grading engine (Reinhard Lab transfer + LUT)
 - [ ] GPU memory management + Apple Silicon MPS support
 
+## Phase 3.5: SOTA Color Engine (Weeks 8–10)
+- [x] P0: Oklab color space module (`src/color/oklab.py`) — pure NumPy sRGB↔Oklab transforms
+- [x] P0: Eliminate uint8 roundtrips — 32-bit float throughout the grading pipeline
+- [x] P1: Cubic spline tone curves via `scipy.interpolate.CubicSpline`
+- [x] P1: Subtractive saturation (filmic density emulation in Oklab)
+- [ ] P1: Chromatic adaptation white balance (CAT02 via `colour-science`)
+- [ ] P2: Guided filter mask refinement (`cv2.ximgproc.guidedFilter`)
+- [ ] P2: Frequency separation for skin grading
+- [ ] P2: CLAHE in Oklab for flat/muddy images
+- [ ] P3: Halation (red-channel scattering) optical effect
+- [ ] P3: Luminance-mapped film grain (Perlin-style, not Gaussian)
+- [ ] Re-tune all 19 presets for the new Oklab pipeline
+- [ ] Update README, test.md, and color_theory.md
+
 ## Phase 4: Creative Output (Weeks 9–10)
 - [ ] Segmentation module
 - [x] Smart cropping (RT-DETR centering logic)

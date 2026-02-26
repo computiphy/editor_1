@@ -588,6 +588,21 @@ class AILayoutGenerator:
         if max_x > 0.90 and max_y > 0.90:
             score += 10.0
 
+        # Fold-crossing penalty: penalise cells that straddle x=0.5
+        # (the center fold of the album spread).  A normalized fold
+        # exclusion zone of ~3% on each side of center (0.47–0.53).
+        fold_left = 0.47
+        fold_right = 0.53
+        for c in cells:
+            c_left = c.x
+            c_right = c.x + c.w
+            if c_left < fold_left and c_right > fold_right:
+                # Cell spans fully across the fold — heavy penalty
+                score -= 30.0
+            elif c_left < fold_right and c_right > fold_left:
+                # Cell partially overlaps the fold margin
+                score -= 15.0
+
         # print(f"DEBUG: AI Assign: {assigned_images} score={score}")
         return max(0, score), assigned_images
 

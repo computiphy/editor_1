@@ -166,27 +166,44 @@ restoration:
 
 ### 4. Color Grading (AI Colorist)
 
-**Module:** `src/color/engine.py`
+**Module:** `src/color/engine.py` (Legacy V1) and `src/color/engine_v2.py` (SOTA V2)
 **What it does:** Applies professional color grading presets to images. The system implements a complete digital darkroom with per-channel HSL adjustments, tone curves, split toning, vignette, and film grain emulation.
 
-**Methodology: Parametric Engine with Generative 1D LUTs**
-Unlike static `.cube` LUTs, this is a **parametric engine**. It uses the instructions in the YAML (the "Preset") to build mathematical transformations on the fly. 
-- **Generative 1D LUTs:** For stages like `Tone Curve` and `Contrast`, the engine builds a 256-entry Lookup Table and applies it via `cv2.LUT()`. This provides O(pixels) performance while maintaining the flexibility of a preset.
-- **Hue-Targeted Masking:** Per-channel HSL adjustments are applied by isolating hue ranges in HSV space, allowing "Green taming" or "Skin protection" without affecting other colors.
+#### Engine Versions
 
-#### Processing Pipeline (in order):
+| Feature | Legacy V1 (`engine.py`) | SOTA V2 (`engine_v2.py`) |
+|:--------|:------------------------|:-------------------------|
+| **Internal Precision** | 8-bit (uint8 roundtrips between stages) | 32-bit float throughout |
+| **Color Space** | OpenCV HSV + CIELAB | **Oklab** (perceptually uniform) |
+| **Tone Curves** | Gamma/lift/ceiling formula | **Cubic spline** (4096-point LUT) |
+| **Saturation** | Additive (colors get brighter) | **Subtractive/filmic** (colors get denser) |
+| **White Balance** | R/B channel addition | **Multiplicative** in linear space |
+| **Exposure** | Gamma-encoded math | **Linear-space** (physically correct) |
+| **Grain** | Gaussian noise | **Luminance-mapped** (heavier in shadows) |
+| **Presets** | All 19 presets | Same 19 presets, re-tuned for Oklab |
+
+**Why Oklab?** CIELAB and HSV are not perceptually uniform — shifting the hue of "green" in HSV causes luminance to change unpredictably. Oklab solves this: a 10° hue rotation produces the same *perceived* change regardless of the starting color. This is critical for operations like "shift greens → teal" (cinematic preset) where legacy HSV introduces unwanted brightness shifts.
+
+**Why Subtractive Saturation?** In the real world, film dyes absorb light. Boosting saturation on Kodak Portra makes reds *deeper* and *darker*. Digital additive math does the opposite — making reds *brighter* and *neon*. The V2 engine emulates film density by proportionally decreasing Oklab lightness when chroma increases, producing the authentic "filmic" look.
+
+#### Processing Pipeline — SOTA V2 (in order):
 
 ```
-1. White Balance Correction (Temperature/Tint shift)
-2. Exposure Adjustment (Stops-based)
-3. Tone Curve (Shadow lift, Highlight roll, Midtone gamma)
-4. Contrast (S-curve in LAB L-channel)
-5. Per-Channel HSL (Hue/Saturation/Luminance per color: Red, Orange, Yellow, Green, Blue, Purple)
-6. Split Toning (Colorize shadows and highlights independently)
-7. Saturation Scaling (Global)
-8. Vibrance (Boosts under-saturated colors more than saturated ones)
-9. Vignette (Radial darkening)
-10. Film Grain (Gaussian noise at configurable size)
+ 1. Input Normalization (uint8 → float32 [0-1])
+ 2. sRGB → Linear (gamma decode)
+ 3. White Balance (Temperature/Tint — linear space, multiplicative)
+ 4. Exposure (linear space — mathematically correct)
+ 5. Linear → Oklab (perceptually uniform color space)
+ 6. Tone Curve (cubic spline on Oklab L channel — 4096-point LUT)
+ 7. Contrast (S-curve on Oklab L channel)
+ 8. Per-Channel H/S/L (Oklab-based hue targeting)
+ 9. Split Toning (Oklab a,b channels)
+10. Subtractive Saturation (filmic density emulation)
+11. Vibrance (chroma-aware boost in Oklab)
+12. Oklab → sRGB
+13. Vignette (radial darkening)
+14. Grain (luminance-mapped, heavier in shadows)
+15. Output (float32 → uint8)
 ```
 
 #### Available Presets (19 total):
@@ -221,11 +238,14 @@ If a `reference_image` path is provided, the engine performs a **Reinhard et al.
 
 **Library choices:**
 
-- **OpenCV (HSV/LAB)** — *Selected over* Pillow and scikit-image for color manipulation.
-  - *Why:* OpenCV's color space conversions are implemented in optimized C++, making them 5-10x faster than Pillow for batch processing. LAB color space operations are critical for perceptually uniform contrast adjustments (you can modify lightness without shifting saturation — impossible in RGB).
+- **Oklab (pure NumPy)** — *Selected over* OpenCV HSV/LAB and colour-science CIELAB.
+  - *Why:* Oklab is perceptually uniform (unlike CIELAB) and can be implemented in pure NumPy with zero external dependencies. Hue rotations don't cause luminance shifts. Saturation adjustments don't cause hue drift. This eliminates the two most common artifacts in wedding photo grading.
 
-- **NumPy LUTs** (tone curves) — *Selected over* scipy interpolation.
-  - *Why:* Lookup tables (256 entries for 8-bit images) are the fastest possible way to apply tonal adjustments. Building the LUT once and applying via `cv2.LUT()` is O(pixels) with zero per-pixel computation, compared to scipy's spline interpolation which computes per-pixel.
+- **SciPy CubicSpline** (tone curves) — *Selected over* numpy LUT and manual gamma formulas.
+  - *Why:* Cubic splines allow arbitrary multi-point curves (like DaVinci Resolve), enabling precise control over shadow/midtone/highlight response. The spline is pre-computed into a 4096-point float32 LUT, so per-pixel application is still O(1).
+
+- **Subtractive Saturation** — *Custom implementation* based on film density science.
+  - *Why:* This is the single biggest quality differentiator. Every consumer photo editor uses additive saturation (making colors brighter). Our engine uses subtractive saturation (making colors denser), producing professional results indistinguishable from real film stock.
 
 **Config:**
 ```yaml

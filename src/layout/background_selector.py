@@ -33,8 +33,8 @@ class BackgroundSelector:
 
         # Pre-compute colors for all candidate backgrounds
         if background_dir.exists():
-            for f in sorted(background_dir.glob("*")):
-                if f.suffix.lower() in {".jpg", ".jpeg", ".png"}:
+            for f in sorted(background_dir.rglob("*")):
+                if f.is_file() and f.suffix.lower() in {".jpg", ".jpeg", ".png"}:
                     self._candidates.append(f)
 
             for bg_path in self._candidates:

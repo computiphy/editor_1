@@ -18,11 +18,13 @@ class AlbumRenderer:
     """
 
     def __init__(self, page_width: int = 3600, page_height: int = 2400,
-                 quality: int = 95, output_format: str = "jpeg"):
+                 quality: int = 95, output_format: str = "jpeg",
+                 dpi: int = 300):
         self.page_width = page_width
         self.page_height = page_height
         self.quality = quality
         self.output_format = output_format
+        self.dpi = dpi
 
     def render_page(self, page: PageLayout, output_path: Path,
                     use_cutouts: bool = False) -> Path:
@@ -58,7 +60,8 @@ class AlbumRenderer:
 
         # 4. Save
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        canvas.save(str(output_path), "JPEG", quality=self.quality)
+        canvas.save(str(output_path), "JPEG", quality=self.quality,
+                    dpi=(self.dpi, self.dpi))
         canvas.close()
 
         return output_path
