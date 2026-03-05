@@ -196,7 +196,7 @@ The V2 engine represents the pinnacle of digital color science, moving away from
  8. Per-Channel HSL ── Target specific hues (e.g., Greens → Emerald)
  9. Split Toning ───── Colorize shadows and highlights independently
 10. Filmic Sat ─────── Subtractive saturation boost (adds density)
-11. 3D LUT ─────────── Tetrahedral .cube application (Optional)
+11. 3D LUT ─────────── Tetrahedral .cube application with Intensity control (Optional)
 12. Halation ───────── Highlight red-channel scattering (Bloom)
 13. Vignette ───────── Radial falloff
 14. Perlin Grain ───── Luminance-weighted procedural texture

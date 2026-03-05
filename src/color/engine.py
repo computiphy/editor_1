@@ -347,6 +347,7 @@ class ColorGradingEngine:
     def __init__(self, method: Union[ColorMethod, str] = ColorMethod.LAB_STATISTICAL,
                  style: str = "natural", strength: float = 1.0,
                  use_aces: bool = False, lut_path: Optional[str] = None,
+                 lut_intensity: float = 1.0,
                  perlin_grain: bool = True, halation_enabled: bool = True,
                  clahe_enabled: bool = False):
         # Handle string input for method
@@ -371,6 +372,7 @@ class ColorGradingEngine:
                 strength=self.strength,
                 use_aces=use_aces,
                 lut_path=lut_path,
+                lut_intensity=lut_intensity,
                 perlin_grain=perlin_grain,
                 halation_enabled=halation_enabled,
                 clahe_enabled=clahe_enabled

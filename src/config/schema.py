@@ -4,8 +4,9 @@ from typing import List, Optional
 class PipelineConfig(BaseModel):
     name: str = "Wedding_Pipeline"
     input_dir: str
-    input_formats: List[str] = Field(default_factory=lambda: ["raw", "jpg"])
+    input_formats: List[str] = Field(default_factory=lambda: ["raw", "jpg", "dng"])
     output_base: str
+    output_format: str = "jpeg"  # jpeg | png | tiff | original
     gpu_backend: str = "auto"
     workers: int = 4
     metadata_required: bool = False
@@ -53,6 +54,7 @@ class ColorGradingConfig(BaseModel):
     # SOTA V2 Features
     use_aces: bool = False
     lut_path: Optional[str] = None
+    lut_intensity: float = 1.0
     clahe_enabled: bool = False
     halation_enabled: bool = False
     perlin_grain: bool = False

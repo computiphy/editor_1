@@ -40,6 +40,7 @@
 - [x] P3: Luminance-mapped film grain (Perlin-style, not Gaussian)
 - [x] P4: 3D LUT engine (.cube) with tetrahedral interpolation
 - [x] P5: ACES/OCIO color management pipeline (via OpenColorIO)
+- [x] Integration: Wired SOTA V2 into `ColorGradingEngine`, `schema.py`, and `orchestrator.py`
 - [ ] Re-tune all 19 presets for the new Oklab pipeline
 - [ ] Update README, test.md, and color_theory.md
 

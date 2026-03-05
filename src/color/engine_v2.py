@@ -30,6 +30,7 @@ Processing Pipeline (in order):
 """
 
 import numpy as np
+from pathlib import Path
 from typing import Dict, List, Tuple, Optional
 from dataclasses import dataclass
 from scipy.interpolate import CubicSpline
@@ -482,12 +483,14 @@ class SOTAColorEngine:
 
     def __init__(self, style: str = "natural", strength: float = 1.0,
                  use_aces: bool = False, lut_path: Optional[str] = None,
+                 lut_intensity: float = 1.0,
                  perlin_grain: bool = True, halation_enabled: bool = True,
                  clahe_enabled: bool = False):
         self.strength = np.clip(strength, 0.0, 1.5)
         self.preset = PRESETS.get(style, PRESETS["natural"])
         self.use_aces = use_aces
         self.lut_path = lut_path
+        self.lut_intensity = lut_intensity
         self.perlin_grain = perlin_grain
         self.halation_enabled = halation_enabled
         self.clahe_enabled = clahe_enabled
@@ -566,7 +569,7 @@ class SOTAColorEngine:
         #     Applied after primary grading but before final finishing steps.
         if self._lut_data:
             lut, size = self._lut_data
-            img = apply_lut3d_array(img, lut, size, intensity=1.0)
+            img = apply_lut3d_array(img, lut, size, intensity=self.lut_intensity)
 
         # 13. Halation (Optical Red Scattering)
         if self.halation_enabled and self.preset.grain_amount > 20:

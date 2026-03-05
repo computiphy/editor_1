@@ -221,7 +221,7 @@ def apply_lut3d_array(image: np.ndarray, lut: np.ndarray, size: int,
     result = result.reshape(h, w, 3).astype(np.float32)
 
     # Blend with original based on intensity
-    if abs(intensity - 1.0) > 0.01:
+    if abs(intensity - 1.0) > 0.001:
         result = image * (1.0 - intensity) + result * intensity
 
     return np.clip(result, 0.0, 1.0).astype(np.float32)

@@ -77,6 +77,7 @@ class WeddingPipeline:
                 strength=self.config.color_grading.strength,
                 use_aces=self.config.color_grading.use_aces,
                 lut_path=self.config.color_grading.lut_path,
+                lut_intensity=self.config.color_grading.lut_intensity,
                 perlin_grain=self.config.color_grading.perlin_grain,
                 halation_enabled=self.config.color_grading.halation_enabled,
                 clahe_enabled=self.config.color_grading.clahe_enabled
@@ -149,10 +150,9 @@ class WeddingPipeline:
 
         total_cutouts = 0
 
+        from src.utils.image_io import load_image, save_image
         for s in tqdm(passed_images):
             try:
-                from src.utils.image_io import load_image, save_image
-                from PIL import Image as PILImage
                 img = load_image(str(s.path))
                 
                 # Restoration
@@ -188,8 +188,7 @@ class WeddingPipeline:
                 # Save graded image to final/ (preserving subfolder structure)
                 rel_path = s.path.relative_to(input_path)
                 target_save_path = final_dir / rel_path
-                target_save_path.parent.mkdir(parents=True, exist_ok=True)
-                save_image(img, str(target_save_path))
+                save_image(img, str(target_save_path), output_format=self.config.pipeline.output_format)
 
                 # Background Removal (on the already-graded image)
                 if self.config.background_removal.enabled and bg_remover:
