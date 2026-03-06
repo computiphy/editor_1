@@ -42,7 +42,6 @@ from src.color.oklab import (
     oklab_chroma, oklab_hue,
 )
 from src.color.aces import srgb_to_acescg, acescg_to_srgb
-from src.color.lut3d import apply_lut3d_array, parse_cube_file
 
 
 # ────────────────────────────────────────────────────────────────
@@ -482,21 +481,15 @@ class SOTAColorEngine:
     """
 
     def __init__(self, style: str = "natural", strength: float = 1.0,
-                 use_aces: bool = False, lut_path: Optional[str] = None,
-                 lut_intensity: float = 1.0,
+                 use_aces: bool = False,
                  perlin_grain: bool = True, halation_enabled: bool = True,
                  clahe_enabled: bool = False):
         self.strength = np.clip(strength, 0.0, 1.5)
         self.preset = PRESETS.get(style, PRESETS["natural"])
         self.use_aces = use_aces
-        self.lut_path = lut_path
-        self.lut_intensity = lut_intensity
         self.perlin_grain = perlin_grain
         self.halation_enabled = halation_enabled
         self.clahe_enabled = clahe_enabled
-        self._lut_data = None
-        if self.lut_path:
-            self._lut_data = parse_cube_file(self.lut_path)
 
     # ── Public API ──────────────────────────────────────────────
 
@@ -565,13 +558,7 @@ class SOTAColorEngine:
         # 11. Oklab → sRGB
         img = oklab_to_srgb(oklab)
 
-        # 12. 3D LUT Engine (.cube)
-        #     Applied after primary grading but before final finishing steps.
-        if self._lut_data:
-            lut, size = self._lut_data
-            img = apply_lut3d_array(img, lut, size, intensity=self.lut_intensity)
-
-        # 13. Halation (Optical Red Scattering)
+        # 12. Halation (Optical Red Scattering)
         if self.halation_enabled and self.preset.grain_amount > 20:
              img = apply_halation(img, intensity=0.1 * self.strength, radius=10, threshold=0.6)
 

@@ -1,6 +1,6 @@
 pipeline:
   name: "Test_ak_SOTA_V2_Test_Fujifilm"
-  input_dir: "D:/studio/tools/vibecoding/sample_photos/objects"
+  input_dir: "D:/studio/tools/vibecoding/sample_photos/ak/test"
   input_formats: ["raw", "jpg", "jpeg", "dng"]
   output_base: "D:/studio/tools/vibecoding/editor_1/wedding_ai_pipeline/output"
   output_format: "original"       # Options: "jpeg", "png", "tiff", "original" (DNG/RAW fallback to JPEG)
@@ -23,19 +23,26 @@ restoration:
 color_grading:
   enabled: true
   method: "sota_v2"               # USE THE NEW SOTA V2 ENGINE
-  style: "cinematic"              # Base style preset
-  strength: 0.8                   # Intensity of the grade
-  
-  # NEW SOTA V2 PARAMETERS
+  style: "natural"                # Base style preset
+  strength: 0.2                   # Intensity of the grade
+
+  # SOTA V2 PARAMETERS
   use_aces: true                  # Use ACEScg wide-gamut scene-linear working space
-  lut_path: "assets/luts/Print+Film+Emulation+LUTs/Rec709_Fujifilm_3510_D65.cube"  # Optional 3D LUT (.cube)
-  lut_intensity: 0.05              # Intensity of the LUT [0.0 - 1.0]
-  
+
   # ADVANCED FEATURES (enabled via preset or overrides)
   segmentation_enabled: true      # Local semantic adjustments
   clahe_enabled: true             # Local contrast enhancement in Oklab L
   halation_enabled: true          # Film-like red scatter in highlights
   perlin_grain: true              # Luminance-mapped clumpy film grain
+
+# ── Standalone LUT Application ──────────────────────────────────
+# Applies ONLY the .cube LUT (with optional intensity blend) to the
+# image — zero other editing.  Output goes to output/<name>/lut/
+# Set color_grading.enabled: false to see the raw LUT effect only.
+lut_application:
+  enabled: true
+  lut_path: "assets/luts/Shutterstock_Free_LUTs/OrangeAndBlue.cube"
+  lut_intensity: 1.0              # 0.0 = original, 1.0 = full LUT, 0.5 = 50% blend
 
 layout:
   enabled: false

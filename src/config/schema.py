@@ -53,11 +53,18 @@ class ColorGradingConfig(BaseModel):
     segmentation_enabled: bool = False
     # SOTA V2 Features
     use_aces: bool = False
-    lut_path: Optional[str] = None
-    lut_intensity: float = 1.0
     clahe_enabled: bool = False
     halation_enabled: bool = False
     perlin_grain: bool = False
+
+class LutApplicationConfig(BaseModel):
+    """Standalone LUT application — no other colour edits.
+    Runs after colour grading (or standalone) to let you preview
+    how a specific .cube LUT looks on the raw/graded image.
+    """
+    enabled: bool = False
+    lut_path: Optional[str] = None          # Path to a .cube LUT file
+    lut_intensity: float = 1.0              # Blend: 0.0 = original, 1.0 = full LUT
 
 class BackgroundRemovalConfig(BaseModel):
     enabled: bool = False
@@ -102,6 +109,7 @@ class ConfigSchema(BaseModel):
     culling: CullingConfig = Field(default_factory=CullingConfig)
     restoration: RestorationConfig = Field(default_factory=RestorationConfig)
     color_grading: ColorGradingConfig = Field(default_factory=ColorGradingConfig)
+    lut_application: LutApplicationConfig = Field(default_factory=LutApplicationConfig)
     background_removal: BackgroundRemovalConfig = Field(default_factory=BackgroundRemovalConfig)
     layout: LayoutConfig = Field(default_factory=LayoutConfig)
     cropping: CroppingConfig = Field(default_factory=CroppingConfig)

@@ -76,13 +76,23 @@ class WeddingPipeline:
                 style=self.config.color_grading.style,
                 strength=self.config.color_grading.strength,
                 use_aces=self.config.color_grading.use_aces,
-                lut_path=self.config.color_grading.lut_path,
-                lut_intensity=self.config.color_grading.lut_intensity,
                 perlin_grain=self.config.color_grading.perlin_grain,
                 halation_enabled=self.config.color_grading.halation_enabled,
                 clahe_enabled=self.config.color_grading.clahe_enabled
             )
             print(f"    Color Style: {self.config.color_grading.style} (strength={self.config.color_grading.strength})")
+
+        # Standalone LUT engine (parsed once, reused for every image)
+        lut_data = None
+        if self.config.lut_application.enabled and self.config.lut_application.lut_path:
+            from src.color.lut3d import parse_cube_file
+            from pathlib import Path as _Path
+            _lut_file = _Path(self.config.lut_application.lut_path)
+            if _lut_file.exists():
+                lut_data = parse_cube_file(str(_lut_file))
+                print(f"    LUT Stage: {_lut_file.name} (intensity={self.config.lut_application.lut_intensity})")
+            else:
+                print(f"    Warning: LUT file not found: {_lut_file}")
 
         # 2. Sequential Execution
         scores = []
@@ -124,6 +134,12 @@ class WeddingPipeline:
         
         final_dir = output_dir / "final"
         final_dir.mkdir(exist_ok=True)
+
+        # LUT output lives in its own folder so you can diff easily
+        lut_dir = None
+        if self.config.lut_application.enabled and lut_data is not None:
+            lut_dir = output_dir / "lut"
+            lut_dir.mkdir(exist_ok=True)
 
         print(f"--- Stage 2: Processing {len(passed_images)} images ---")
         
@@ -189,6 +205,24 @@ class WeddingPipeline:
                 rel_path = s.path.relative_to(input_path)
                 target_save_path = final_dir / rel_path
                 save_image(img, str(target_save_path), output_format=self.config.pipeline.output_format)
+
+                # ── Standalone LUT Application Stage ─────────────────────────
+                # Applies the .cube LUT to the *current* img (post-grade if grading
+                # is enabled, or to the raw/restored image if grading is off).
+                # Saves result to output/lut/ — no other processing is done.
+                if self.config.lut_application.enabled and lut_data is not None and lut_dir is not None:
+                    from src.color.lut3d import apply_lut3d_array
+                    import numpy as np
+                    # Normalise to float32 [0-1] for the LUT engine
+                    lut_input = np.clip(img.astype(np.float32) / 255.0, 0.0, 1.0)
+                    lut_arr, lut_size = lut_data
+                    lut_out = apply_lut3d_array(
+                        lut_input, lut_arr, lut_size,
+                        intensity=self.config.lut_application.lut_intensity
+                    )
+                    lut_img = np.clip(lut_out * 255.0, 0, 255).astype(np.uint8)
+                    lut_save_path = lut_dir / rel_path
+                    save_image(lut_img, str(lut_save_path), output_format=self.config.pipeline.output_format)
 
                 # Background Removal (on the already-graded image)
                 if self.config.background_removal.enabled and bg_remover:
