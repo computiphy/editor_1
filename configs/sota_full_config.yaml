@@ -1,6 +1,6 @@
 pipeline:
-  name: "Test_ak_SOTA_V2_Test_Fujifilm"
-  input_dir: "D:/studio/tools/vibecoding/sample_photos/ak/test"
+  name: "Test_SOTA_V2_BDAY26022026"
+  input_dir: "D:/studio/works/B DAY 26-02-26/PHOTOS/"
   input_formats: ["raw", "jpg", "jpeg", "dng"]
   output_base: "D:/studio/tools/vibecoding/editor_1/wedding_ai_pipeline/output"
   output_format: "original"       # Options: "jpeg", "png", "tiff", "original" (DNG/RAW fallback to JPEG)
@@ -21,34 +21,34 @@ restoration:
   face_restore: true
 
 color_grading:
-  enabled: true
+  enabled: false
   method: "sota_v2"               # USE THE NEW SOTA V2 ENGINE
   style: "natural"                # Base style preset
   strength: 0.2                   # Intensity of the grade
 
   # SOTA V2 PARAMETERS
-  use_aces: true                  # Use ACEScg wide-gamut scene-linear working space
+  use_aces: false                  # Use ACEScg wide-gamut scene-linear working space
 
   # ADVANCED FEATURES (enabled via preset or overrides)
-  segmentation_enabled: true      # Local semantic adjustments
-  clahe_enabled: true             # Local contrast enhancement in Oklab L
-  halation_enabled: true          # Film-like red scatter in highlights
-  perlin_grain: true              # Luminance-mapped clumpy film grain
+  segmentation_enabled: false      # Local semantic adjustments
+  clahe_enabled: false             # Local contrast enhancement in Oklab L
+  halation_enabled: false          # Film-like red scatter in highlights
+  perlin_grain: false              # Luminance-mapped clumpy film grain
 
 # ── Standalone LUT Application ──────────────────────────────────
 # Applies ONLY the .cube LUT (with optional intensity blend) to the
 # image — zero other editing.  Output goes to output/<name>/lut/
 # Set color_grading.enabled: false to see the raw LUT effect only.
 lut_application:
-  enabled: true
-  lut_path: "assets/luts/Shutterstock_Free_LUTs/OrangeAndBlue.cube"
+  enabled: false
+  lut_path: "assets/luts/TemperatureLUTs/2800 Kelvin - 4300 Kelvin - 0.95 CTO.cube"
   lut_intensity: 1.0              # 0.0 = original, 1.0 = full LUT, 0.5 = 50% blend
 
 layout:
   enabled: false
   mode: "ai"
   ai_style: "magazine"
-  background_directory: "assets/backgrounds/2"
+  background_directory: "assets/backgrounds/lite_green"
 
 narrative:
   enabled: false

@@ -84,10 +84,12 @@ class LayoutConfig(BaseModel):
     gutter: int = 30
     use_cutouts: bool = False
     background_directory: str = "assets/backgrounds"
-    background_strategy: str = "dominant"                            # dominant | average
+    background_strategy: str = "dominant"  # dominant | average | random | round_robin | shuffle | fixed
+    background_seed: Optional[int] = None  # Seed for random/shuffle strategies (None = non-deterministic)
     ai_style: str = "classic"                                       # classic | elegant | minimal | dynamic | magazine
     ai_seed: int = 42
     export: LayoutExportConfig = Field(default_factory=LayoutExportConfig)
+
 
 class CroppingConfig(BaseModel):
     enabled: bool = True

@@ -258,6 +258,7 @@ class WeddingPipeline:
                     use_cutouts=self.config.layout.use_cutouts,
                     background_dir=self.config.layout.background_directory,
                     background_strategy=self.config.layout.background_strategy,
+                    background_seed=self.config.layout.background_seed,
                     export_format=self.config.layout.export.format,
                     export_quality=self.config.layout.export.quality,
                     ai_style=self.config.layout.ai_style,

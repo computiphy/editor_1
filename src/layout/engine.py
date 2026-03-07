@@ -38,12 +38,26 @@ class AlbumLayoutEngine:
                  use_cutouts: bool = False,
                  background_dir: str = "assets/backgrounds",
                  background_strategy: str = "dominant",
+                 background_seed: Optional[int] = None,
                  export_format: str = "jpeg",
                  export_quality: int = 95,
                  ai_style: str = "classic",
                  ai_seed: int = 42,
                  fold_margin: int = 60):
-
+        """
+        Parameters
+        ----------
+        background_strategy : str
+            How to select a background image for each album page:
+              * ``dominant``   – best LAB ΔE match on the page's dominant colour.
+              * ``average``    – best LAB ΔE match on the page's mean colour.
+              * ``random``     – pick a random background each page.
+              * ``round_robin``– cycle through pool sequentially (1,2,3…1,2,3…).
+              * ``shuffle``    – shuffle pool once at startup, then cycle.
+              * ``fixed``      – always use the first background in the pool.
+        background_seed : int | None
+            Optional seed for reproducible ``random`` / ``shuffle`` modes.
+        """
         self.mode = mode
         self.page_width, self.page_height = page_size
         self.dpi = dpi
@@ -57,7 +71,9 @@ class AlbumLayoutEngine:
         # Initialize submodules
         self.registry = TemplateRegistry()
         self.bg_selector = BackgroundSelector(
-            Path(background_dir), strategy=background_strategy
+            Path(background_dir),
+            strategy=background_strategy,
+            seed=background_seed,
         )
         self.renderer = AlbumRenderer(
             page_width=self.page_width,
