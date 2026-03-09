@@ -5,7 +5,7 @@ pipeline:
   output_base: "C:/Swaroop/editor_1/editor_1/output"
   gpu_backend: "auto"
   workers: 2                      # Legacy fallback (used if stage-specific workers not set)
-  queue_maxsize: 16               # Bounded queue between grading & BG removal
+  queue_maxsize: 8                # Bounded queue between grading & BG removal
                                   # Config 1 (16GB): 4  |  Config 2 (48GB): 16
   metadata_required: false
 
@@ -36,15 +36,15 @@ color_grading:
   strength: 1.5                     # 0.0 = no effect, 1.0 = full, 1.5 = max
   reference_image: "C:/Swaroop/editor_1/editor_1/assets/reference_style.png"
   segmentation_enabled: true       # Set true to enable SAM-based local grading
-  workers: 10                      # CPU/RAM bound — concurrent images being graded
-                                   # Config 1 (16GB): 4  |  Config 2 (48GB): 10
+  workers: 3                       # CPU/RAM bound — concurrent images being graded
+                                   # Optimal across configs (avoids GIL lock contention): 2-3
 
 background_removal:
   enabled: true                     # Set true to generate cutouts (PNG with transparent bg)
   model: "bria-rmbg"        # BEST for weddings. Options: birefnet-portrait, birefnet-massive, bria-rmbg, u2net
   device: "gpu"                    # "cpu" or "gpu" (gpu requires onnxruntime-gpu)
-  workers: 2                       # VRAM bound — concurrent GPU inferences
-                                   # Config 1 (GTX 1650 4GB): 1  |  Config 2 (RTX 3070 Ti 8GB): 3
+  workers: 1                       # VRAM bound — concurrent GPU inferences
+                                   # Optimal (avoids ONNX CUDA contention context switching): 1
 
 layout:
   enabled: true                     # Generate album pages

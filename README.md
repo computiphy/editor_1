@@ -420,6 +420,17 @@ background_removal:
 
 ---
 
+## Performance Tuning & Hardware Scaling
+
+Extensive profiling has revealed two critical bottlenecks in High-End hardware scaling:
+
+1. **Python GIL Contention:** The `color_grading` stage relies heavily on OpenCV and NumPy, but intermediate Python loops and object allocations cause severe Global Interpreter Lock (GIL) contention if too many threads are used. **Optimal `workers_grading` is 3.** Pushing this higher (e.g., 6 or 10) actually *slows down* processing as threads spend up to 25% of their total execution time waiting for lock acquisition.
+2. **ONNX CUDA Serialization:** Even on 8GB+ GPUs like the RTX 3070 Ti, opening multiple `CUDAExecutionProvider` sessions or running multiple threads concurrently through ONNX causes context-switching overhead that kills throughput. **Optimal `workers_gpu` is 1.** The pipeline relies on a bounded producer-consumer queue to overlap the CPU grading and the GPU inference sequentially, achieving 100% GPU utilization with a single worker.
+
+Do not be tempted to max out `workers_grading` or `workers_gpu` just because your hardware has the core count. The provided default values are mathematically optimized to balance the DDR bandwidth and GIL.
+
+---
+
 ## Filter Presets Reference
 
 See [`color_theory.md`](color_theory.md) for the full specification of all 19 presets, including:

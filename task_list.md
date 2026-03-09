@@ -54,5 +54,5 @@
 ## Phase 5: Polish & Production (Weeks 11–12)
 - [ ] End-to-end integration testing
 - [ ] Docker GPU + CPU images + docker-compose
-- [ ] Performance benchmarking
+- [x] Performance benchmarking
 - [ ] Documentation
