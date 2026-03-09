@@ -1,10 +1,14 @@
 pipeline:
   name: "Test_SOTA_V2_BDAY26022026"
-  input_dir: "D:/studio/works/B DAY 26-02-26/PHOTOS/"
+  input_dir: "C:/Swaroop/editor_1/editor_1/input"
   input_formats: ["raw", "jpg", "jpeg"]
-  output_base: "D:/studio/tools/vibecoding/editor_1/wedding_ai_pipeline/output"
+  output_base: "C:/Swaroop/editor_1/editor_1/output"
   gpu_backend: "auto"
-  workers: 2
+  workers: 2                      # Legacy fallback
+  workers_culling: 12              # CPU/Disk bound — use most threads
+  workers_grading: 10              # CPU/RAM bound — 4 keeps within 16GB
+  workers_gpu: 1                  # VRAM bound — GTX 1650 can only do 1
+  queue_maxsize: 16                # ~400MB RAM buffer between grading & BG removal
   metadata_required: false
 
 culling:
@@ -24,18 +28,19 @@ restoration:
     overlap: 64
 
 color_grading:
-  enabled: false
+  enabled: true
   method: "lab_statistical"
   style: "vibrant"               # OPTIONS: natural, cinematic, pastel, moody,
                                     #          golden_hour, film_kodak, film_fuji,
                                     #          vibrant, black_and_white
   strength: 1.5                     # 0.0 = no effect, 1.0 = full, 1.5 = max
-  reference_image: "D:/studio/tools/vibecoding/editor_1/wedding_ai_pipeline/assets/reference_style.png"
+  reference_image: "C:/Swaroop/editor_1/editor_1/assets/reference_style.png"
   segmentation_enabled: true       # Set true to enable SAM-based local grading
 
 background_removal:
-  enabled: false                     # Set true to generate cutouts (PNG with transparent bg)
-  model: "birefnet-massive"        # BEST for weddings. Options: birefnet-portrait, birefnet-massive, bria-rmbg, u2net
+  enabled: true                     # Set true to generate cutouts (PNG with transparent bg)
+  model: "bria-rmbg"        # BEST for weddings. Options: birefnet-portrait, birefnet-massive, bria-rmbg, u2net
+  device: "gpu"                    # "cpu" or "gpu" (gpu requires onnxruntime-gpu)
 
 layout:
   enabled: true                     # Generate album pages
@@ -46,7 +51,7 @@ layout:
   padding: 60                       # outer margin in pixels
   gutter: 30                        # gap between cells in pixels
   use_cutouts: false                # true = composite RGBA cutouts over background
-  background_directory: "assets/backgrounds/lite_green"
+  background_directory: "assets/backgrounds/2"
   background_strategy: "dominant"   # dominant | average | random | round_robin | shuffle | fixed
   background_seed: ~                 # null = non-deterministic; set an int for round_robin/shuffle/random
   ai_style: "magazine"              # classic | elegant | minimal | dynamic | magazine

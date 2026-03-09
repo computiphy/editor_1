@@ -72,13 +72,13 @@ class SemanticSegmenter:
 
         # Convert to HSV (OpenCV scale: H=0-180, S=0-255, V=0-255)
         hsv = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
-        h_ch = hsv[:, :, 0].astype(np.float32)
-        s_ch = hsv[:, :, 1].astype(np.float32)
-        v_ch = hsv[:, :, 2].astype(np.float32)
+        h_ch = hsv[:, :, 0]
+        s_ch = hsv[:, :, 1]
+        v_ch = hsv[:, :, 2]
 
         # Convert to LAB for luminance
         lab = cv2.cvtColor(image, cv2.COLOR_RGB2Lab)
-        l_ch = lab[:, :, 0].astype(np.float32)
+        l_ch = lab[:, :, 0]
 
         # ── 1. Skin Detection ──────────────────────────────────────
         # color_theory.md §3.2: H: 5–25, S: 40–170, V: 80–255
@@ -86,7 +86,7 @@ class SemanticSegmenter:
             (h_ch >= 5) & (h_ch <= 25) &
             (s_ch >= 40) & (s_ch <= 170) &
             (v_ch >= 80)
-        ).astype(np.float32)
+        ).astype(np.uint8)
         # Morphological cleanup: remove noise, fill small holes
         kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
         skin_mask = cv2.morphologyEx(skin_mask, cv2.MORPH_OPEN, kernel)
@@ -98,12 +98,12 @@ class SemanticSegmenter:
             (h_ch >= 95) & (h_ch <= 125) &
             (s_ch >= 50) &
             (v_ch >= 80)
-        ).astype(np.float32)
+        ).astype(np.uint8)
         # Position heuristic: sky is more likely in top 60% of frame
         position_weight = np.ones((h, w), dtype=np.float32)
         gradient = np.linspace(1.0, 0.0, h, dtype=np.float32).reshape(-1, 1)
         position_weight = np.broadcast_to(gradient, (h, w)).copy()
-        sky_mask = sky_color * position_weight
+        sky_mask = sky_color.astype(np.float32) * position_weight
         sky_mask = cv2.morphologyEx(sky_mask, cv2.MORPH_OPEN, kernel)
 
         # ── 3. Vegetation Detection ──────────────────────────────
@@ -112,7 +112,7 @@ class SemanticSegmenter:
             (h_ch >= 30) & (h_ch <= 85) &
             (s_ch >= 40) &
             (v_ch >= 30) & (v_ch <= 200)
-        ).astype(np.float32)
+        ).astype(np.uint8)
         veg_mask = cv2.morphologyEx(veg_mask, cv2.MORPH_OPEN, kernel)
 
         # ── 4. White Dress Detection ──────────────────────────────
@@ -122,7 +122,7 @@ class SemanticSegmenter:
             (s_ch <= 40) &
             (v_ch >= 200) &
             (l_ch >= 200)
-        ).astype(np.float32)
+        ).astype(np.uint8)
         # Remove small white specular highlights (keep large regions only)
         kernel_large = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (11, 11))
         dress_mask = cv2.morphologyEx(dress_mask, cv2.MORPH_OPEN, kernel_large)
@@ -134,11 +134,17 @@ class SemanticSegmenter:
             (l_ch <= 50) &
             (s_ch <= 80) &
             (v_ch <= 80)
-        ).astype(np.float32)
+        ).astype(np.uint8)
         suit_mask = cv2.morphologyEx(suit_mask, cv2.MORPH_OPEN, kernel)
         suit_mask = cv2.morphologyEx(suit_mask, cv2.MORPH_CLOSE, kernel)
 
         # ── Priority Resolution ──────────────────────────────────
+        # Cast to float32 now that morphology is done and we need to do math
+        skin_mask = skin_mask.astype(np.float32)
+        veg_mask = veg_mask.astype(np.float32)
+        dress_mask = dress_mask.astype(np.float32)
+        suit_mask = suit_mask.astype(np.float32)
+
         # Skin has HIGHEST priority: remove skin pixels from other masks
         skin_binary = (skin_mask > 0.5).astype(np.float32)
         sky_mask = sky_mask * (1.0 - skin_binary)

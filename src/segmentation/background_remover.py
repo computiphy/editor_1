@@ -33,20 +33,36 @@ MODEL_MAP = {
 class BackgroundRemover:
     """Removes backgrounds from images using rembg + BiRefNet."""
 
-    def __init__(self, model: str = "birefnet-portrait"):
+    def __init__(self, model: str = "birefnet-portrait", device: str = "cpu"):
+        import threading
+        self._lock = threading.Lock()
         self._session = None
         self._model_name = MODEL_MAP.get(model, "birefnet-portrait")
-        print(f"    BG Removal Model: {self._model_name}")
+        self._device = device.lower()
+        print(f"    BG Removal Model: {self._model_name} (device={self._device})")
 
     def _get_session(self):
         """Lazy-load the rembg session (downloads model weights on first use)."""
         if self._session is None:
-            from rembg import new_session
-            self._session = new_session(self._model_name)
+            with self._lock:
+                # Double-check inside the lock to prevent a race condition
+                if self._session is None:
+                    from rembg import new_session
+                    if self._device == "gpu":
+                        providers = [
+                            ("CUDAExecutionProvider", {
+                                "cudnn_conv_algo_search": "HEURISTIC",
+                                "arena_extend_strategy": "kNextPowerOfTwo"
+                            }),
+                            "CPUExecutionProvider"
+                        ]
+                    else:
+                        providers = ["CPUExecutionProvider"]
+                    self._session = new_session(self._model_name, providers=providers)
         return self._session
 
     def remove_background(self, image: np.ndarray,
-                          post_process_mask: bool = True) -> np.ndarray:
+                          post_process_mask: bool = False) -> np.ndarray:
         """
         Remove the background from an RGB image.
 

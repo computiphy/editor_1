@@ -8,7 +8,11 @@ class PipelineConfig(BaseModel):
     output_base: str
     output_format: str = "jpeg"  # jpeg | png | tiff | original
     gpu_backend: str = "auto"
-    workers: int = 4
+    workers: int = 4                                # Legacy fallback
+    workers_culling: Optional[int] = None           # Defaults to workers if not set
+    workers_grading: Optional[int] = None           # Defaults to workers if not set
+    workers_gpu: Optional[int] = None               # Defaults to 1 if not set
+    queue_maxsize: int = 4                          # Bounded queue size for producer-consumer
     metadata_required: bool = False
 
 class CullingConfig(BaseModel):
@@ -69,6 +73,7 @@ class LutApplicationConfig(BaseModel):
 class BackgroundRemovalConfig(BaseModel):
     enabled: bool = False
     model: str = "u2net"
+    device: str = "cpu"  # "cpu" or "gpu"
 
 class LayoutExportConfig(BaseModel):
     format: str = "jpeg"

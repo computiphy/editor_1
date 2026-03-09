@@ -511,7 +511,7 @@ class ColorGradingEngine:
             return img
 
         img_u8 = np.clip(img, 0, 255).astype(np.uint8)
-        hsv = cv2.cvtColor(img_u8, cv2.COLOR_RGB2HSV).astype(np.float32)
+        hsv = cv2.cvtColor(img_u8, cv2.COLOR_RGB2HSV)
         h_ch, s_ch, v_ch = hsv[:, :, 0], hsv[:, :, 1], hsv[:, :, 2]
 
         for color_name, adj in channels.items():
@@ -530,18 +530,22 @@ class ColorGradingEngine:
                 continue
 
             # Apply scaled adjustments
-            h_ch[mask] += adj.hue * self.strength * 0.5  # OpenCV H is 0-180
-            s_ch[mask] += adj.sat * self.strength * 1.28  # Scale % to 0-255
-            v_ch[mask] += adj.lum * self.strength * 1.28
+            if abs(adj.hue) > 0.1:
+                h_float = h_ch[mask].astype(np.float32)
+                h_mod = h_float + adj.hue * self.strength * 0.5  # OpenCV H is 0-180
+                h_ch[mask] = np.clip(h_mod % 180, 0, 179).astype(np.uint8)
+            
+            if abs(adj.sat) > 0.1:
+                s_float = s_ch[mask].astype(np.float32)
+                s_mod = s_float + adj.sat * self.strength * 1.28
+                s_ch[mask] = np.clip(s_mod, 0, 255).astype(np.uint8)
+                
+            if abs(adj.lum) > 0.1:
+                v_float = v_ch[mask].astype(np.float32)
+                v_mod = v_float + adj.lum * self.strength * 1.28
+                v_ch[mask] = np.clip(v_mod, 0, 255).astype(np.uint8)
 
-        # Wrap hue
-        h_ch = h_ch % 180
-
-        hsv[:, :, 0] = np.clip(h_ch, 0, 179)
-        hsv[:, :, 1] = np.clip(s_ch, 0, 255)
-        hsv[:, :, 2] = np.clip(v_ch, 0, 255)
-
-        result = cv2.cvtColor(hsv.astype(np.uint8), cv2.COLOR_HSV2RGB)
+        result = cv2.cvtColor(hsv, cv2.COLOR_HSV2RGB)
         return result.astype(np.float32)
 
     # ── Split Toning ────────────────────────────────────────────
@@ -720,13 +724,12 @@ class ColorGradingEngine:
         Skin protection: hue clamp [15°,40°], saturation cap,
         luminance boost, local warmth.
         """
-        adjusted = img.copy()
-        img_u8 = np.clip(adjusted, 0, 255).astype(np.uint8)
-        hsv = cv2.cvtColor(img_u8, cv2.COLOR_RGB2HSV).astype(np.float32)
+        img_u8 = np.clip(img, 0, 255).astype(np.uint8)
+        hsv = cv2.cvtColor(img_u8, cv2.COLOR_RGB2HSV)
 
         # Hue clamp: force skin hue into healthy 15°–40° range
         # OpenCV hue scale: 15°→7.5, 40°→20 (divide 360° scale by 2)
-        h_low, h_high = 7.5, 20.0
+        h_low, h_high = 7, 20
         skin_pixels = mask > 0.3
         h = hsv[:, :, 0]
         # Clamp hue for skin pixels
@@ -735,19 +738,16 @@ class ColorGradingEngine:
 
         # Saturation cap: prevent over-saturated skin
         # OpenCV sat scale: 65% of 255 ≈ 166
-        sat_limit = 166.0
+        sat_limit = 166
         s = hsv[:, :, 1]
         s[skin_pixels & (s > sat_limit)] = sat_limit
 
         # Luminance boost: +5%
         v = hsv[:, :, 2]
-        v[skin_pixels] = np.clip(v[skin_pixels] * 1.05, 0, 255)
+        v_float = v[skin_pixels].astype(np.float32)
+        v[skin_pixels] = np.clip(v_float * 1.05, 0, 255).astype(np.uint8)
 
-        hsv[:, :, 0] = h
-        hsv[:, :, 1] = s
-        hsv[:, :, 2] = v
-
-        adjusted = cv2.cvtColor(hsv.astype(np.uint8), cv2.COLOR_HSV2RGB).astype(np.float32)
+        adjusted = cv2.cvtColor(hsv, cv2.COLOR_HSV2RGB).astype(np.float32)
 
         # Local warmth: +3K temperature (add red, reduce blue)
         warmth = 3.0 * 2.5  # same scale as _adjust_temperature
@@ -763,32 +763,31 @@ class ColorGradingEngine:
         Sky enhancement: darken highlights, boost saturation,
         push hue towards teal-azure, gradient-aware.
         """
-        adjusted = img.copy()
-        img_u8 = np.clip(adjusted, 0, 255).astype(np.uint8)
-        hsv = cv2.cvtColor(img_u8, cv2.COLOR_RGB2HSV).astype(np.float32)
+        img_u8 = np.clip(img, 0, 255).astype(np.uint8)
+        hsv = cv2.cvtColor(img_u8, cv2.COLOR_RGB2HSV)
 
         sky_pixels = mask > 0.3
 
         # Luminance offset: -10%
         v = hsv[:, :, 2]
-        v[sky_pixels] = np.clip(v[sky_pixels] * 0.90, 0, 255)
+        v_float = v[sky_pixels].astype(np.float32)
+        v[sky_pixels] = np.clip(v_float * 0.90, 0, 255).astype(np.uint8)
 
         # Saturation boost: +10%
         s = hsv[:, :, 1]
-        s[sky_pixels] = np.clip(s[sky_pixels] * 1.10, 0, 255)
+        s_float = s[sky_pixels].astype(np.float32)
+        s[sky_pixels] = np.clip(s_float * 1.10, 0, 255).astype(np.uint8)
 
         # Hue shift towards 195° (teal-azure) → OpenCV scale ≈ 97
         # Gently push existing blue hues towards 97
         h = hsv[:, :, 0]
         target_hue = 97.0
-        hue_diff = target_hue - h[sky_pixels]
-        h[sky_pixels] = h[sky_pixels] + hue_diff * 0.3  # 30% shift
+        h_float = h[sky_pixels].astype(np.float32)
+        hue_diff = target_hue - h_float
+        h_mod = h_float + hue_diff * 0.3  # 30% shift
+        h[sky_pixels] = np.clip(h_mod, 0, 180).astype(np.uint8)
 
-        hsv[:, :, 0] = np.clip(h, 0, 180)
-        hsv[:, :, 1] = s
-        hsv[:, :, 2] = v
-
-        adjusted = cv2.cvtColor(hsv.astype(np.uint8), cv2.COLOR_HSV2RGB).astype(np.float32)
+        adjusted = cv2.cvtColor(hsv, cv2.COLOR_HSV2RGB).astype(np.float32)
 
         # Gradient-aware: apply more at top, less at bottom
         height = mask.shape[0]
@@ -805,29 +804,27 @@ class ColorGradingEngine:
         Vegetation taming: shift yellow-green → emerald, desaturate,
         darken slightly.
         """
-        adjusted = img.copy()
-        img_u8 = np.clip(adjusted, 0, 255).astype(np.uint8)
-        hsv = cv2.cvtColor(img_u8, cv2.COLOR_RGB2HSV).astype(np.float32)
+        img_u8 = np.clip(img, 0, 255).astype(np.uint8)
+        hsv = cv2.cvtColor(img_u8, cv2.COLOR_RGB2HSV)
 
         veg_pixels = mask > 0.3
 
         # Hue shift: +15° towards emerald (OpenCV scale: +7.5)
         h = hsv[:, :, 0]
-        h[veg_pixels] = np.clip(h[veg_pixels] + 7.5, 0, 180)
+        h_float = h[veg_pixels].astype(np.float32)
+        h[veg_pixels] = np.clip(h_float + 7.5, 0, 180).astype(np.uint8)
 
         # Saturation offset: -20%
         s = hsv[:, :, 1]
-        s[veg_pixels] = np.clip(s[veg_pixels] * 0.80, 0, 255)
+        s_float = s[veg_pixels].astype(np.float32)
+        s[veg_pixels] = np.clip(s_float * 0.80, 0, 255).astype(np.uint8)
 
         # Luminance offset: -8%
         v = hsv[:, :, 2]
-        v[veg_pixels] = np.clip(v[veg_pixels] * 0.92, 0, 255)
+        v_float = v[veg_pixels].astype(np.float32)
+        v[veg_pixels] = np.clip(v_float * 0.92, 0, 255).astype(np.uint8)
 
-        hsv[:, :, 0] = h
-        hsv[:, :, 1] = s
-        hsv[:, :, 2] = v
-
-        adjusted = cv2.cvtColor(hsv.astype(np.uint8), cv2.COLOR_HSV2RGB).astype(np.float32)
+        adjusted = cv2.cvtColor(hsv, cv2.COLOR_HSV2RGB).astype(np.float32)
         return self._blend(img, adjusted, mask)
 
     # ── White Dress Protection (color_theory.md §6.2 Class 5) ───
@@ -837,35 +834,33 @@ class ColorGradingEngine:
         White dress protection: clamp saturation near zero,
         remove color cast via LAB neutralization.
         """
-        adjusted = img.copy()
-        img_u8 = np.clip(adjusted, 0, 255).astype(np.uint8)
+        img_u8 = np.clip(img, 0, 255).astype(np.uint8)
 
         # Cast removal: push a,b channels towards neutral (128)
-        lab = cv2.cvtColor(img_u8, cv2.COLOR_RGB2Lab).astype(np.float32)
+        lab = cv2.cvtColor(img_u8, cv2.COLOR_RGB2Lab)
         dress_pixels = mask > 0.3
 
         # Neutralize: gently pull a and b towards 128 (neutral white)
         a_ch = lab[:, :, 1]
         b_ch = lab[:, :, 2]
-        a_ch[dress_pixels] = a_ch[dress_pixels] * 0.3 + 128.0 * 0.7
-        b_ch[dress_pixels] = b_ch[dress_pixels] * 0.3 + 128.0 * 0.7
-        lab[:, :, 1] = a_ch
-        lab[:, :, 2] = b_ch
+        a_float = a_ch[dress_pixels].astype(np.float32)
+        b_float = b_ch[dress_pixels].astype(np.float32)
+        a_ch[dress_pixels] = np.clip(a_float * 0.3 + 128.0 * 0.7, 0, 255).astype(np.uint8)
+        b_ch[dress_pixels] = np.clip(b_float * 0.3 + 128.0 * 0.7, 0, 255).astype(np.uint8)
 
         # Luminance protection: don't clip highlights
         l_ch = lab[:, :, 0]
         l_ch[dress_pixels & (l_ch > 250)] = 250  # Recover just before clipping
 
-        adjusted = cv2.cvtColor(lab.astype(np.uint8), cv2.COLOR_Lab2RGB).astype(np.float32)
+        adjusted_rgb = cv2.cvtColor(lab, cv2.COLOR_Lab2RGB)
 
         # Saturation clamp: near zero for white dress
-        hsv = cv2.cvtColor(np.clip(adjusted, 0, 255).astype(np.uint8),
-                           cv2.COLOR_RGB2HSV).astype(np.float32)
-        sat_limit = 10.0 * 255.0 / 100.0  # 10% → ~25.5
+        hsv = cv2.cvtColor(adjusted_rgb, cv2.COLOR_RGB2HSV)
+        sat_limit = 26  # roughly 10% of 255
         s = hsv[:, :, 1]
         s[dress_pixels & (s > sat_limit)] = sat_limit
-        hsv[:, :, 1] = s
-        adjusted = cv2.cvtColor(hsv.astype(np.uint8), cv2.COLOR_HSV2RGB).astype(np.float32)
+        
+        adjusted = cv2.cvtColor(hsv, cv2.COLOR_HSV2RGB).astype(np.float32)
 
         return self._blend(img, adjusted, mask)
 
@@ -876,9 +871,8 @@ class ColorGradingEngine:
         Dark suit enhancement: set black point L=8,
         remove color cast, add local contrast.
         """
-        adjusted = img.copy()
-        img_u8 = np.clip(adjusted, 0, 255).astype(np.uint8)
-        lab = cv2.cvtColor(img_u8, cv2.COLOR_RGB2Lab).astype(np.float32)
+        img_u8 = np.clip(img, 0, 255).astype(np.uint8)
+        lab = cv2.cvtColor(img_u8, cv2.COLOR_RGB2Lab)
 
         suit_pixels = mask > 0.3
 
@@ -889,16 +883,16 @@ class ColorGradingEngine:
         # Cast removal: neutralize a,b channels
         a_ch = lab[:, :, 1]
         b_ch = lab[:, :, 2]
-        a_ch[suit_pixels] = a_ch[suit_pixels] * 0.5 + 128.0 * 0.5
-        b_ch[suit_pixels] = b_ch[suit_pixels] * 0.5 + 128.0 * 0.5
-        lab[:, :, 1] = a_ch
-        lab[:, :, 2] = b_ch
+        a_float = a_ch[suit_pixels].astype(np.float32)
+        b_float = b_ch[suit_pixels].astype(np.float32)
+        a_ch[suit_pixels] = np.clip(a_float * 0.5 + 128.0 * 0.5, 0, 255).astype(np.uint8)
+        b_ch[suit_pixels] = np.clip(b_float * 0.5 + 128.0 * 0.5, 0, 255).astype(np.uint8)
 
         # Local contrast: +10% S-curve on L channel for fabric texture
-        l_suit = l_ch[suit_pixels]
-        mid = l_suit.mean()
-        l_ch[suit_pixels] = np.clip(mid + (l_suit - mid) * 1.10, 0, 255)
+        l_suit = l_ch[suit_pixels].astype(np.float32)
+        if len(l_suit) > 0:
+            mid = l_suit.mean()
+            l_ch[suit_pixels] = np.clip(mid + (l_suit - mid) * 1.10, 0, 255).astype(np.uint8)
 
-        lab[:, :, 0] = l_ch
-        adjusted = cv2.cvtColor(lab.astype(np.uint8), cv2.COLOR_Lab2RGB).astype(np.float32)
+        adjusted = cv2.cvtColor(lab, cv2.COLOR_Lab2RGB).astype(np.float32)
         return self._blend(img, adjusted, mask)

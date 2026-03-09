@@ -94,18 +94,32 @@ class WeddingPipeline:
             else:
                 print(f"    Warning: LUT file not found: {_lut_file}")
 
-        # 2. Sequential Execution
+        # ── Resolve stage-specific worker counts ───────────────────
+        w = self.config.pipeline
+        workers_culling = getattr(w, 'workers_culling', None) or getattr(w, 'workers', 4)
+        workers_grading = getattr(w, 'workers_grading', None) or getattr(w, 'workers', 4)
+        workers_gpu     = getattr(w, 'workers_gpu', None) or 1
+        queue_maxsize   = getattr(w, 'queue_maxsize', 4)
+
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        import queue as queue_mod
+
+        # 2. Culling (parallelized)
         scores = []
         passed_images = []
         
         if self.config.culling.enabled:
-            print(f"--- Stage 1: Culling {total_input} images ---")
-            for p in tqdm(photo_paths):
-                try:
-                    score = culling_engine.evaluate_image(p)
-                    scores.append(score)
-                except Exception as e:
-                    print(f"Error evaluating {p}: {e}")
+            print(f"--- Stage 1: Culling {total_input} images (workers={workers_culling}) ---")
+            def _cull_image(p):
+                return culling_engine.evaluate_image(p)
+            with ThreadPoolExecutor(max_workers=workers_culling) as cull_pool:
+                futures = {cull_pool.submit(_cull_image, p): p for p in photo_paths}
+                for future in tqdm(as_completed(futures), total=len(futures)):
+                    try:
+                        score = future.result()
+                        scores.append(score)
+                    except Exception as e:
+                        print(f"Error evaluating {futures[future]}: {e}")
             passed_images = [s for s in scores if s.passed]
         else:
             print(f"--- Stage 1: Culling Disabled (Passing all {total_input} images) ---")
@@ -125,7 +139,7 @@ class WeddingPipeline:
                 ))
                 scores = passed_images
 
-        # 3. Restoration & Grading & Saving
+        # 3. Restoration & Grading & BG Removal
         total_restored = 0
         total_graded = 0
         
@@ -141,13 +155,13 @@ class WeddingPipeline:
             lut_dir = output_dir / "lut"
             lut_dir.mkdir(exist_ok=True)
 
-        print(f"--- Stage 2: Processing {len(passed_images)} images ---")
+        print(f"--- Stage 2: Grading {len(passed_images)} images (workers={workers_grading}) ---")
         
         # Initialize Background Remover
         bg_remover = None
         if self.config.background_removal.enabled:
             from src.segmentation.background_remover import BackgroundRemover
-            bg_remover = BackgroundRemover(model=self.config.background_removal.model)
+            bg_remover = BackgroundRemover(model=self.config.background_removal.model, device=self.config.background_removal.device)
 
         # Load reference image for grading if needed
         reference_img = None
@@ -164,10 +178,21 @@ class WeddingPipeline:
             cutouts_dir = output_dir / "cutouts"
             cutouts_dir.mkdir(exist_ok=True)
 
+        # Pre-initialize SemanticSegmenter to avoid race condition in threads
+        if self.config.color_grading.enabled and self.config.color_grading.segmentation_enabled:
+            from src.segmentation.semantic_segmenter import SemanticSegmenter
+            self._segmenter = SemanticSegmenter()
+
         total_cutouts = 0
 
         from src.utils.image_io import load_image, save_image
-        for s in tqdm(passed_images):
+
+        # ── Producer-Consumer Queue Architecture ─────────────────
+        bg_queue = queue_mod.Queue(maxsize=queue_maxsize) if bg_remover else None
+
+        def _grade_image(s):
+            """Producer: load, restore, grade, save, then queue for BG removal."""
+            counts = {"restored": 0, "graded": 0}
             try:
                 img = load_image(str(s.path))
                 
@@ -178,42 +203,32 @@ class WeddingPipeline:
                         has_faces=s.has_faces, 
                         blur_score=s.blur_score
                     )
-                    total_restored += 1
+                    counts["restored"] = 1
                 
                 # Color Grading
                 if self.config.color_grading.enabled and grading_engine:
-                    # Step 1: Apply style preset (cinematic, pastel, etc.)
                     img = grading_engine.apply_style(img)
                     
-                    # Step 2: Optional reference transfer blend
                     if reference_img is not None:
                         ref_result = grading_engine.apply_transfer(img, reference_img)
-                        # Blend at 30% to add reference vibe without overpowering preset
                         img = cv2.addWeighted(img, 0.7, ref_result, 0.3, 0)
                     
-                    # Step 3: Semantic per-region overrides (skin, sky, vegetation, etc.)
                     if self.config.color_grading.segmentation_enabled:
-                        from src.segmentation.semantic_segmenter import SemanticSegmenter
-                        if not hasattr(self, '_segmenter'):
-                            self._segmenter = SemanticSegmenter()
                         seg_result = self._segmenter.segment(img)
                         img = grading_engine.apply_semantic_grading(img, seg_result.as_dict())
                     
-                    total_graded += 1
+                    counts["graded"] = 1
                 
-                # Save graded image to final/ (preserving subfolder structure)
+                # Save graded image to final/
                 rel_path = s.path.relative_to(input_path)
                 target_save_path = final_dir / rel_path
+                target_save_path.parent.mkdir(parents=True, exist_ok=True)
                 save_image(img, str(target_save_path), output_format=self.config.pipeline.output_format)
 
-                # ── Standalone LUT Application Stage ─────────────────────────
-                # Applies the .cube LUT to the *current* img (post-grade if grading
-                # is enabled, or to the raw/restored image if grading is off).
-                # Saves result to output/lut/ — no other processing is done.
+                # LUT Application (stays in producer — needs graded img)
                 if self.config.lut_application.enabled and lut_data is not None and lut_dir is not None:
                     from src.color.lut3d import apply_lut3d_array
                     import numpy as np
-                    # Normalise to float32 [0-1] for the LUT engine
                     lut_input = np.clip(img.astype(np.float32) / 255.0, 0.0, 1.0)
                     lut_arr, lut_size = lut_data
                     lut_out = apply_lut3d_array(
@@ -222,26 +237,67 @@ class WeddingPipeline:
                     )
                     lut_img = np.clip(lut_out * 255.0, 0, 255).astype(np.uint8)
                     lut_save_path = lut_dir / rel_path
+                    lut_save_path.parent.mkdir(parents=True, exist_ok=True)
                     save_image(lut_img, str(lut_save_path), output_format=self.config.pipeline.output_format)
 
-                # Background Removal (on the already-graded image)
-                if self.config.background_removal.enabled and bg_remover:
-                    try:
-                        rgba = bg_remover.remove_background(img)
-                        # Save as PNG to preserve transparency (same subfolder structure)
-                        cutout_name = rel_path.with_suffix(".png")
-                        target_cutout_path = cutouts_dir / cutout_name
-                        target_cutout_path.parent.mkdir(parents=True, exist_ok=True)
-                        
-                        pil_rgba = PILImage.fromarray(rgba)
-                        pil_rgba.save(str(target_cutout_path), "PNG")
-                        total_cutouts += 1
-                    except Exception as bg_err:
-                        print(f"Error removing background for {s.path}: {bg_err}")
-                
+                # Queue graded image for BG removal (blocks if queue is full)
+                if bg_queue is not None:
+                    bg_queue.put((img, rel_path))
+
             except Exception as e:
                 print(f"Error processing {s.path}: {e}")
+                
+            return counts
 
+        def _bg_consumer():
+            """Consumer: pull graded images from the queue, run BG removal, save cutouts."""
+            local_cutouts = 0
+            while True:
+                item = bg_queue.get()
+                if item is None:
+                    bg_queue.task_done()
+                    break  # Sentinel received — shut down
+                img, rel_path = item
+                try:
+                    rgba = bg_remover.remove_background(img)
+                    cutout_name = rel_path.with_suffix(".png")
+                    target_cutout_path = cutouts_dir / cutout_name
+                    target_cutout_path.parent.mkdir(parents=True, exist_ok=True)
+                    bgra = cv2.cvtColor(rgba, cv2.COLOR_RGBA2BGRA)
+                    cv2.imwrite(str(target_cutout_path), bgra, [cv2.IMWRITE_PNG_COMPRESSION, 1])
+                    local_cutouts += 1
+                except Exception as bg_err:
+                    print(f"Error removing background for {rel_path}: {bg_err}")
+                finally:
+                    bg_queue.task_done()
+            return local_cutouts
+
+        # ── Launch consumer threads first (they block on empty queue) ──
+        consumer_futures = []
+        consumer_pool = None
+        if bg_remover:
+            consumer_pool = ThreadPoolExecutor(max_workers=workers_gpu)
+            for _ in range(workers_gpu):
+                consumer_futures.append(consumer_pool.submit(_bg_consumer))
+
+        # ── Launch producer pool ──────────────────────────────────
+        with ThreadPoolExecutor(max_workers=workers_grading) as grade_pool:
+            futures = [grade_pool.submit(_grade_image, s) for s in passed_images]
+            for future in tqdm(as_completed(futures), total=len(passed_images)):
+                res = future.result()
+                total_restored += res["restored"]
+                total_graded += res["graded"]
+
+        # ── Sentinel shutdown: tell consumers to stop ─────────────
+        if bg_queue is not None:
+            for _ in range(workers_gpu):
+                bg_queue.put(None)
+            # Wait for all consumer threads to finish
+            for cf in consumer_futures:
+                total_cutouts += cf.result()
+            consumer_pool.shutdown(wait=True)
+            if bg_remover:
+                print(f"--- Stage 3: BG Removal complete ({total_cutouts} cutouts) ---")
         # 4. Album Layout (Stage 9)
         total_album_pages = 0
         album_project = None
