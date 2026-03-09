@@ -65,12 +65,12 @@ def test_pipeline_stage_specific_workers(tmp_path):
     mock_config.pipeline.output_base = str(tmp_path / "output")
     mock_config.pipeline.name = "test_run"
     mock_config.pipeline.output_format = "jpeg"
-    # Stage-specific worker counts
+    # Stage-specific worker counts (in their respective subsections)
     mock_config.pipeline.workers = 2            # Legacy fallback
-    mock_config.pipeline.workers_culling = 4
-    mock_config.pipeline.workers_grading = 3
-    mock_config.pipeline.workers_gpu = 1
     mock_config.pipeline.queue_maxsize = 2
+    mock_config.culling.workers = 4
+    mock_config.color_grading.workers = 3
+    mock_config.background_removal.workers = 1
     mock_config.culling.enabled = False
     mock_config.restoration.enabled = False
     mock_config.color_grading.enabled = False
@@ -110,10 +110,10 @@ def test_pipeline_producer_consumer_queue(tmp_path):
     mock_config.pipeline.name = "test_queue"
     mock_config.pipeline.output_format = "jpeg"
     mock_config.pipeline.workers = 1
-    mock_config.pipeline.workers_culling = 2
-    mock_config.pipeline.workers_grading = 2
-    mock_config.pipeline.workers_gpu = 1
     mock_config.pipeline.queue_maxsize = 2
+    mock_config.culling.workers = 2
+    mock_config.color_grading.workers = 2
+    mock_config.background_removal.workers = 1
     mock_config.culling.enabled = False
     mock_config.restoration.enabled = False
     mock_config.color_grading.enabled = False

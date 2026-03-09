@@ -95,14 +95,17 @@ class WeddingPipeline:
                 print(f"    Warning: LUT file not found: {_lut_file}")
 
         # ── Resolve stage-specific worker counts ───────────────────
-        w = self.config.pipeline
-        workers_culling = getattr(w, 'workers_culling', None) or getattr(w, 'workers', 4)
-        workers_grading = getattr(w, 'workers_grading', None) or getattr(w, 'workers', 4)
-        workers_gpu     = getattr(w, 'workers_gpu', None) or 1
-        queue_maxsize   = getattr(w, 'queue_maxsize', 4)
+        fallback = getattr(self.config.pipeline, 'workers', 4)
+        workers_culling = getattr(self.config.culling, 'workers', None) or fallback
+        workers_grading = getattr(self.config.color_grading, 'workers', None) or fallback
+        workers_gpu     = getattr(self.config.background_removal, 'workers', None) or 1
+        queue_maxsize   = getattr(self.config.pipeline, 'queue_maxsize', 4)
+
+        print(f"    Workers: culling={workers_culling}, grading={workers_grading}, gpu={workers_gpu}, queue={queue_maxsize}")
 
         from concurrent.futures import ThreadPoolExecutor, as_completed
         import queue as queue_mod
+        import threading
 
         # 2. Culling (parallelized)
         scores = []
@@ -249,7 +252,7 @@ class WeddingPipeline:
                 
             return counts
 
-        def _bg_consumer():
+        def _bg_consumer(pbar):
             """Consumer: pull graded images from the queue, run BG removal, save cutouts."""
             local_cutouts = 0
             while True:
@@ -270,20 +273,24 @@ class WeddingPipeline:
                     print(f"Error removing background for {rel_path}: {bg_err}")
                 finally:
                     bg_queue.task_done()
+                    pbar.update(1)
             return local_cutouts
 
         # ── Launch consumer threads first (they block on empty queue) ──
         consumer_futures = []
         consumer_pool = None
+        bg_pbar = None
         if bg_remover:
+            print(f"--- Stage 3: BG Removal (workers={workers_gpu}) ---")
+            bg_pbar = tqdm(total=len(passed_images), desc="BG Removal")
             consumer_pool = ThreadPoolExecutor(max_workers=workers_gpu)
             for _ in range(workers_gpu):
-                consumer_futures.append(consumer_pool.submit(_bg_consumer))
+                consumer_futures.append(consumer_pool.submit(_bg_consumer, bg_pbar))
 
         # ── Launch producer pool ──────────────────────────────────
         with ThreadPoolExecutor(max_workers=workers_grading) as grade_pool:
             futures = [grade_pool.submit(_grade_image, s) for s in passed_images]
-            for future in tqdm(as_completed(futures), total=len(passed_images)):
+            for future in tqdm(as_completed(futures), total=len(passed_images), desc="Grading"):
                 res = future.result()
                 total_restored += res["restored"]
                 total_graded += res["graded"]
@@ -296,8 +303,9 @@ class WeddingPipeline:
             for cf in consumer_futures:
                 total_cutouts += cf.result()
             consumer_pool.shutdown(wait=True)
-            if bg_remover:
-                print(f"--- Stage 3: BG Removal complete ({total_cutouts} cutouts) ---")
+            if bg_pbar:
+                bg_pbar.close()
+            print(f"--- Stage 3: BG Removal complete ({total_cutouts} cutouts) ---")
         # 4. Album Layout (Stage 9)
         total_album_pages = 0
         album_project = None

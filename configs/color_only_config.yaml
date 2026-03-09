@@ -4,11 +4,9 @@ pipeline:
   input_formats: ["raw", "jpg", "jpeg"]
   output_base: "C:/Swaroop/editor_1/editor_1/output"
   gpu_backend: "auto"
-  workers: 2                      # Legacy fallback
-  workers_culling: 12              # CPU/Disk bound — use most threads
-  workers_grading: 10              # CPU/RAM bound — 4 keeps within 16GB
-  workers_gpu: 1                  # VRAM bound — GTX 1650 can only do 1
-  queue_maxsize: 16                # ~400MB RAM buffer between grading & BG removal
+  workers: 2                      # Legacy fallback (used if stage-specific workers not set)
+  queue_maxsize: 16               # Bounded queue between grading & BG removal
+                                  # Config 1 (16GB): 4  |  Config 2 (48GB): 16
   metadata_required: false
 
 culling:
@@ -16,6 +14,8 @@ culling:
   blur_threshold: 100.0
   duplicate_threshold: 5
   quality_threshold: 70.0
+  workers: 12                     # CPU/Disk bound — use most threads
+                                  # Config 1 (4c/8t): 6  |  Config 2 (8c/16t): 12
 
 restoration:
   enabled: false
@@ -36,11 +36,15 @@ color_grading:
   strength: 1.5                     # 0.0 = no effect, 1.0 = full, 1.5 = max
   reference_image: "C:/Swaroop/editor_1/editor_1/assets/reference_style.png"
   segmentation_enabled: true       # Set true to enable SAM-based local grading
+  workers: 10                      # CPU/RAM bound — concurrent images being graded
+                                   # Config 1 (16GB): 4  |  Config 2 (48GB): 10
 
 background_removal:
   enabled: true                     # Set true to generate cutouts (PNG with transparent bg)
   model: "bria-rmbg"        # BEST for weddings. Options: birefnet-portrait, birefnet-massive, bria-rmbg, u2net
   device: "gpu"                    # "cpu" or "gpu" (gpu requires onnxruntime-gpu)
+  workers: 2                       # VRAM bound — concurrent GPU inferences
+                                   # Config 1 (GTX 1650 4GB): 1  |  Config 2 (RTX 3070 Ti 8GB): 3
 
 layout:
   enabled: true                     # Generate album pages
