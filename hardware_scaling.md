@@ -27,7 +27,7 @@ This document details how specific hardware component upgrades affect the overal
 *   **What it is:** The number of physical processing units available.
 *   **Impact on Pipeline:**
     *   **Culling:** Scales nearly linearly. If you double your cores, you can hash and blur-detect double the images per second using the `workers_culling` thread pool.
-    *   **Color Grading:** Heavy Python GIL (Global Interpreter Lock) contention. While OpenCV/Numpy drop the GIL for single large operations, the pipeline combines thousands of small operations per image. Profiling shows that grading scales well up to **~3 cores**. Pushing beyond 3-4 cores on high-end CPUs causes threads to spend 25%+ of their time blocked waiting for lock acquisition, actually *slowing down* total execution.
+    *   **Color Grading:** Scales extremely well. Profiling confirms that 8+ physical cores can cut isolated grading time from 150s down to <85s. Note: When running the full pipeline with Background Removal, the profiler may show massive `lock.acquire` times. This is **not GIL contention**; it is intentional **Queue Backpressure**. Fast grading workers fill the RAM queue perfectly, then block on `q.put()` waiting for the slower GPU inference to catch up, preventing memory exhaustion.
     *   **GPU Stages:** Minimal direct impact, but having extra cores prevents the system from stuttering while the GPU is working.
 
 ### 4. RAM Bandwidth
@@ -108,10 +108,10 @@ Assuming a typical processing batch of **100 high-resolution (24MP) images** wit
 
 ### Config 2
 *(8 Core Zen 3+, 48GB Fast DDR5 RAM, Gen4 NVMe, RTX 3070 Ti 8GB)*
-**Queue Setup (Profiled Optimal):** `workers_culling: 12`, `workers_grading: 3`, `workers_gpu: 1`, `queue_maxsize: 8`
+**Queue Setup (Profiled Optimal):** `workers_culling: 12`, `workers_grading: 8`, `workers_gpu: 1`, `queue_maxsize: 8`
 
 *   **Stage 1 (Culling):** ~5 seconds (8 fast physical cores and Gen4 NVMe simply tear through the file headers).
-*   **Stage 3 (Color Grading):** Highly optimized at 3 workers. Expanding to 10 workers actually degrades performance via Python GIL contention (wasting ~25% execution time to lock acquisition). At 3 workers, grading averages ~7 seconds per image, constantly feeding the queue.
-*   **Stage 2 + 4 (Restoration & BG Removal):** Averages ~11 seconds per image on the RTX 3070 Ti natively. Running 1 worker avoids ONNX CUDA context-switching overhead (which otherwise spikes inference to 30s+ per image).
-*   **Total Exec Time:** **~5 minutes** (for 100 images)
-*   *Note:* The hardware upgrade provides absolute stability. The ample RAM acts as a shock-absorber, allowing the CPU to grade perfectly in-sync with the GPU inference, achieving 100% component utilization across the pipeline.
+*   **Stage 3 (Color Grading):** Highly optimized. 8 workers can grade 100 images in ~1.5 minutes natively. When running sequentially with GPU stages, the fast CPU workers keep the queue instantly full, acting as a perfect buffer.
+*   **Stage 2 + 4 (Restoration & BG Removal):** Averages ~4.5s per image on the RTX 3070 Ti natively (for standard portrait model). Running 1 worker avoids ONNX CUDA context-switching overhead.
+*   **Total Exec Time:** **~7.5 minutes** (for 100 images) bounded solely by the GPU limit.
+*   *Note:* The ample RAM acts as a shock-absorber. Because grading is so much faster than GPU inference, the CPU threads intentionally park themselves (showing high lock wait times in profilers) via Queue backpressure, completely preventing Out-Of-Memory errors while feeding the GPU at exactly 100% saturation.

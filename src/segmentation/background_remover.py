@@ -47,6 +47,7 @@ class BackgroundRemover:
             with self._lock:
                 # Double-check inside the lock to prevent a race condition
                 if self._session is None:
+                    import os
                     from rembg import new_session
                     if self._device == "gpu":
                         providers = [
@@ -56,8 +57,14 @@ class BackgroundRemover:
                             }),
                             "CPUExecutionProvider"
                         ]
+                        # VERY IMPORTANT: Restrict ONNX to 1 CPU thread when using GPU.
+                        # Otherwise it spawns threads = logical cores, starving Python threads.
+                        os.environ["OMP_NUM_THREADS"] = "1"
                     else:
                         providers = ["CPUExecutionProvider"]
+                        # Restrict to 2 threads for CPU inference to balance load
+                        os.environ["OMP_NUM_THREADS"] = "2"
+                        
                     self._session = new_session(self._model_name, providers=providers)
         return self._session
 

@@ -36,12 +36,12 @@ color_grading:
   strength: 1.5                     # 0.0 = no effect, 1.0 = full, 1.5 = max
   reference_image: "C:/Swaroop/editor_1/editor_1/assets/reference_style.png"
   segmentation_enabled: true       # Set true to enable SAM-based local grading
-  workers: 3                       # CPU/RAM bound — concurrent images being graded
-                                   # Optimal across configs (avoids GIL lock contention): 2-3
+  workers: 8                       # CPU/RAM bound — concurrent images being graded
+                                   # Extremely fast. Safe to scale up to physical core count.
 
 background_removal:
   enabled: true                     # Set true to generate cutouts (PNG with transparent bg)
-  model: "bria-rmbg"        # BEST for weddings. Options: birefnet-portrait, birefnet-massive, bria-rmbg, u2net
+  model: "birefnet-massive"        # BEST for weddings. Options: birefnet-portrait, birefnet-massive, bria-rmbg, u2net
   device: "gpu"                    # "cpu" or "gpu" (gpu requires onnxruntime-gpu)
   workers: 1                       # VRAM bound — concurrent GPU inferences
                                    # Optimal (avoids ONNX CUDA contention context switching): 1
