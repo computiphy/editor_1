@@ -8,19 +8,23 @@
 
 ### 🔍 Performance: Eliminating Contention Bottlenecks
 
-Extensive profiling was conducted to resolve a performance regression (200s → 370s) introduced by the multi-threaded architecture. The findings fundamentally changed how we scale the pipeline on high-end hardware (e.g., RTX 3070 Ti, 48GB RAM).
+Extensive profiling was conducted to resolve a performance regression (200s → ~280s) introduced by the multi-threaded architecture. The findings fundamentally changed how we scale the pipeline on high-end hardware (e.g., RTX 3070 Ti, 48GB RAM).
 
-#### 1. The Python GIL (Global Interpreter Lock) Bottleneck
-- **Discovery:** Profiling 10 grading workers revealed **95+ seconds** of pure thread lock contention (`_thread.lock.acquire`) and saturated RAM bandwidth via `numpy.clip`.
-- **Resolution:** Reduced `color_grading.workers` to `3`. This optimal number eliminates lock contention and allows OpenCV/Numpy to drop the GIL efficiently, restoring CPU performance without saturating the DDR bus.
+#### 1. Queue Backpressure (Not GIL Contention)
+- **Discovery:** Profiling grading workers revealed **95+ seconds** of pure thread lock contention (`_thread.lock.acquire`). Initially misattributed to the Python GIL, further isolated profiling revealed this is actually **intentional Queue Backpressure**. The ultra-fast CPU grading threads quickly fill the bounded RAM queue, then intentionally block waiting for the slower GPU consumer, preventing out-of-memory errors while keeping the GPU 100% saturated.
+- **Resolution:** Grading threads can safely be scaled up to the physical CPU core count.
 
-#### 2. ONNX Runtime CUDA Contention
+#### 2. ONNX C++ Thread CPU Starvation 
+- **Discovery:** `onnxruntime-gpu` attempts to spawn backend C++ threads equal to physical core count by default, even when executing on the GPU. This starved the Python grading workers of CPU cycles.
+- **Resolution:** Hardcoded `os.environ["OMP_NUM_THREADS"] = "1"` in `background_remover.py` before ONNX session creation, completely eliminating the CPU starvation.
+
+#### 3. ONNX Runtime CUDA Contention
 - **Discovery:** Profiling 2 GPU workers (`workers_gpu: 2`) revealed severe CUDA context-switching logic inside `onnxruntime-gpu`. Two threads fighting for the same GPU session doubled inference time per image (from ~12s to ~30s+) despite abundant VRAM on the 3070 Ti.
-- **Resolution:** Kept `background_removal.workers` at `1`. The producer-consumer queue ensures this single GPU thread is kept at 100% utilization by the grading stage, maximizing throughput without context-switching overhead.
+- **Resolution:** Kept `background_removal.workers` at `1`. For deep compute-heavy models like `birefnet`, a single worker perfectly saturates the GPU compute capabilities without context-switch latency.
 
 #### [color_only_config.yaml](file:///C:/Swaroop/editor_1/editor_1/configs/color_only_config.yaml)
-- Updated defaults to globally optimal values to prevent user hardware saturation:
-  - `workers_grading: 3` (GIL sweet-spot)
+- Updated defaults to globally optimal values:
+  - `workers_grading: 8` (Matches high-end physical cores)
   - `workers_gpu: 1` (ONNX CUDA sweet-spot)
   - `queue_maxsize: 8`
 

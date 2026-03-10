@@ -44,7 +44,8 @@ background_removal:
   model: "birefnet-massive"        # BEST for weddings. Options: birefnet-portrait, birefnet-massive, bria-rmbg, u2net
   device: "gpu"                    # "cpu" or "gpu" (gpu requires onnxruntime-gpu)
   workers: 1                       # VRAM bound — concurrent GPU inferences
-                                   # Optimal (avoids ONNX CUDA contention context switching): 1
+                                   # KEEP AT 1 for deep models (birefnet). >1 causes severe 
+                                   # CUDA context-switching overhead with no throughput gain.
 
 layout:
   enabled: true                     # Generate album pages
