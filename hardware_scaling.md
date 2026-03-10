@@ -82,7 +82,7 @@ Scale: `0` (Nil / Almost Nil) to `10` (Extremely High Impact)
 | :--- | :---: | :---: | :---: | :---: | :---: |
 | **CPU Single Thread** | 3 | 1 | 9 | 1 | 10 |
 | **AVX-512 Support** | 1 | 0 | 10 | 0 | 2 |
-| **CPU Core Count** | 9 | 1 | 8 | 1 | 8 |
+| **CPU Core Count** | 9 | 1 | 10 | 1 | 8 |
 | **RAM Bandwidth** | 7 | 2 | 10 | 3 | 8 |
 | **RAM Latency** | 2 | 1 | 3 | 1 | 2 |
 | **RAM Capacity** | 4 | 5 | 9 | 7 | 4 |
