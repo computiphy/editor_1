@@ -420,6 +420,19 @@ background_removal:
 
 ---
 
+## Performance Tuning & Hardware Scaling
+
+Extensive profiling has revealed two critical bottlenecks in High-End hardware scaling:
+
+1. **Queue Backpressure (Not GIL Contention):** The `color_grading` stage relies heavily on OpenCV and NumPy, scaling beautifully across physical cores. You can safely set `workers_grading` up to your physical core count (e.g., 8 on an 8-core CPU). When running the full pipeline, profilers may show massive `lock.acquire` times. This is intentional **Queue Backpressure**. The ultra-fast CPU grading threads quickly fill the bounded RAM queue, then intentionally block waiting for the slower GPU consumer, preventing memory exhaustion.
+2. **ONNX C++ Thread Starvation & CUDA Serialization:** 
+   - `onnxruntime-gpu` attempts to spawn backend C++ threads equal to your physical core count, even when running on the GPU! To prevent these threads from starving your Python grading workers, `background_remover.py` forcibly sets `os.environ["OMP_NUM_THREADS"] = "1"`.
+   - Even on 8GB+ GPUs like the RTX 3070 Ti, opening multiple `CUDAExecutionProvider` sessions or running multiple threads concurrently through ONNX causes severe context-switching overhead that kills throughput. For deep models like `birefnet`, **Optimal `workers_gpu` is 1.** The single worker will perfectly saturate the GPU compute power without context delays.
+
+Do not be tempted to max out `workers_gpu` just because your hardware has the VRAM. The pipeline relies on a bounded producer-consumer queue to overlap the aggressive CPU grading and the sequential GPU inference perfectly.
+
+---
+
 ## Filter Presets Reference
 
 See [`color_theory.md`](color_theory.md) for the full specification of all 19 presets, including:

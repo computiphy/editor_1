@@ -47,3 +47,9 @@ ENV/
 # OS
 .DS_Store
 Thumbs.db
+
+# Image files
+.jpg
+.jpeg
+.png
+.raw

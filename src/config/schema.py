@@ -8,7 +8,8 @@ class PipelineConfig(BaseModel):
     output_base: str
     output_format: str = "jpeg"  # jpeg | png | tiff | original
     gpu_backend: str = "auto"
-    workers: int = 4
+    workers: int = 4                                # Legacy fallback for all stages
+    queue_maxsize: int = 4                          # Bounded queue size for producer-consumer
     metadata_required: bool = False
 
 class CullingConfig(BaseModel):
@@ -16,6 +17,7 @@ class CullingConfig(BaseModel):
     blur_threshold: float = 100.0
     duplicate_threshold: int = 5
     quality_threshold: float = 70.0
+    workers: Optional[int] = None                   # Defaults to pipeline.workers if not set
 
 class TilingConfig(BaseModel):
     enabled: bool = True
@@ -51,6 +53,7 @@ class ColorGradingConfig(BaseModel):
     reference_image: Optional[str] = None
     strength: float = 1.0
     segmentation_enabled: bool = False
+    workers: Optional[int] = None                   # Defaults to pipeline.workers if not set
     # SOTA V2 Features
     use_aces: bool = False
     clahe_enabled: bool = False
@@ -69,6 +72,8 @@ class LutApplicationConfig(BaseModel):
 class BackgroundRemovalConfig(BaseModel):
     enabled: bool = False
     model: str = "u2net"
+    device: str = "cpu"  # "cpu" or "gpu"
+    workers: Optional[int] = None                   # Defaults to 1 if not set
 
 class LayoutExportConfig(BaseModel):
     format: str = "jpeg"

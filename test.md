@@ -33,6 +33,8 @@ This file tracks the TDD progress, rationale for each test, and current status.
 | `test_layout_engine_fixed_partition` | Validates the fixed-partition layout algorithm. | ✅ PASSED | Automated album design foundation. |
 | `test_pipeline_add_step` | Ensures steps can be dynamically added to the pipeline. | ✅ PASSED | Modular architecture verified. |
 | `test_pipeline_runs_and_returns_result`| Validates the orchestrator's full execution flow from ingestion. | ✅ PASSED | End-to-end orchestration base verified. |
+| `test_pipeline_stage_specific_workers` | Validates stage-specific worker counts (culling, grading, GPU) are accepted. | ✅ PASSED | Multi-stage ThreadPool architecture verified. |
+| `test_pipeline_producer_consumer_queue` | Validates bounded queue between grading producer and BG removal consumer. | ✅ PASSED | Sentinel shutdown, no deadlocks, cutout output verified. |
 | `test_srgb_to_linear_black_is_zero` | Validates sRGB→Linear gamma decode at boundary (black). | ✅ PASSED | SOTA Engine P0 foundation. |
 | `test_srgb_to_linear_white_is_one` | Validates sRGB→Linear gamma decode at boundary (white). | ✅ PASSED | SOTA Engine P0 foundation. |
 | `test_srgb_to_linear_midgrey` | Validates gamma correction: sRGB 0.5 → linear ~0.214. | ✅ PASSED | Proves gamma transfer function is correct. |

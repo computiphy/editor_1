@@ -1,10 +1,12 @@
 pipeline:
   name: "Test_SOTA_V2_BDAY26022026"
-  input_dir: "D:/studio/works/B DAY 26-02-26/PHOTOS/"
+  input_dir: "C:/Swaroop/editor_1/editor_1/input"
   input_formats: ["raw", "jpg", "jpeg"]
-  output_base: "D:/studio/tools/vibecoding/editor_1/wedding_ai_pipeline/output"
+  output_base: "C:/Swaroop/editor_1/editor_1/output"
   gpu_backend: "auto"
-  workers: 2
+  workers: 2                      # Legacy fallback (used if stage-specific workers not set)
+  queue_maxsize: 8                # Bounded queue between grading & BG removal
+                                  # Config 1 (16GB): 4  |  Config 2 (48GB): 16
   metadata_required: false
 
 culling:
@@ -12,6 +14,8 @@ culling:
   blur_threshold: 100.0
   duplicate_threshold: 5
   quality_threshold: 70.0
+  workers: 12                     # CPU/Disk bound — use most threads
+                                  # Config 1 (4c/8t): 6  |  Config 2 (8c/16t): 12
 
 restoration:
   enabled: false
@@ -24,18 +28,24 @@ restoration:
     overlap: 64
 
 color_grading:
-  enabled: false
+  enabled: true
   method: "lab_statistical"
   style: "vibrant"               # OPTIONS: natural, cinematic, pastel, moody,
                                     #          golden_hour, film_kodak, film_fuji,
                                     #          vibrant, black_and_white
   strength: 1.5                     # 0.0 = no effect, 1.0 = full, 1.5 = max
-  reference_image: "D:/studio/tools/vibecoding/editor_1/wedding_ai_pipeline/assets/reference_style.png"
+  reference_image: "C:/Swaroop/editor_1/editor_1/assets/reference_style.png"
   segmentation_enabled: true       # Set true to enable SAM-based local grading
+  workers: 8                       # CPU/RAM bound — concurrent images being graded
+                                   # Extremely fast. Safe to scale up to physical core count.
 
 background_removal:
-  enabled: false                     # Set true to generate cutouts (PNG with transparent bg)
+  enabled: true                     # Set true to generate cutouts (PNG with transparent bg)
   model: "birefnet-massive"        # BEST for weddings. Options: birefnet-portrait, birefnet-massive, bria-rmbg, u2net
+  device: "gpu"                    # "cpu" or "gpu" (gpu requires onnxruntime-gpu)
+  workers: 1                       # VRAM bound — concurrent GPU inferences
+                                   # KEEP AT 1 for deep models (birefnet). >1 causes severe 
+                                   # CUDA context-switching overhead with no throughput gain.
 
 layout:
   enabled: true                     # Generate album pages
@@ -46,7 +56,7 @@ layout:
   padding: 60                       # outer margin in pixels
   gutter: 30                        # gap between cells in pixels
   use_cutouts: false                # true = composite RGBA cutouts over background
-  background_directory: "assets/backgrounds/lite_green"
+  background_directory: "assets/backgrounds/2"
   background_strategy: "dominant"   # dominant | average | random | round_robin | shuffle | fixed
   background_seed: ~                 # null = non-deterministic; set an int for round_robin/shuffle/random
   ai_style: "magazine"              # classic | elegant | minimal | dynamic | magazine
