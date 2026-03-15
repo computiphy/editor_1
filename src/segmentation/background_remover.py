@@ -21,6 +21,7 @@ import platform
 import site
 import threading
 import onnxruntime as ort
+from src.utils.trt_helper import TrtRegistry
 
 
 # Map config-friendly names to rembg session names
@@ -113,6 +114,7 @@ class BackgroundRemover:
                         from pathlib import Path
                         cache_dir = Path(__file__).resolve().parent.parent.parent / ".trt_engine_cache"
                         cache_dir.mkdir(parents=True, exist_ok=True)
+                        registry = TrtRegistry(cache_dir)
                         
                         providers = [
                             ("TensorrtExecutionProvider", {
@@ -141,6 +143,28 @@ class BackgroundRemover:
                         os.environ["OMP_NUM_THREADS"] = "2"
                         
                     self._session = new_session(self._model_name, providers=providers)
+                    
+                    # Update registry if TensorRT was requested and produced an engine
+                    if self._device == "tensorrt":
+                        if hasattr(self._session, 'inner_session'):
+                            ort_session = self._session.inner_session
+                        else:
+                            ort_session = self._session
+                            
+                        if "TensorrtExecutionProvider" in ort_session.get_providers():
+                            # Find the engine file (snapshot approach is better, 
+                            # but here we can at least check if the registry has a good guess)
+                            # Actually, for the core pipeline, we just want to ensure that 
+                            # if a NEW engine was just created, it gets noted.
+                            # TRT creates engines lazily on the FIRST run, but rembg's 
+                            # new_session might trigger the build depending on provider opts.
+                            
+                            # Simple logic for core: find the newest engine file 
+                            # if it's not already in registry.
+                            engines = list(cache_dir.glob("*.engine"))
+                            if engines:
+                                newest = max(engines, key=os.path.getmtime)
+                                registry.update(self._model_name, newest.name)
         return self._session
 
     def remove_background(self, image: np.ndarray,

@@ -14,6 +14,30 @@ from PIL import Image
 # NOTE: This script is deliberately standalone and does not import from src/.
 # This ensures it can be run for environment setup without affecting the main project development.
 
+class StandaloneTrtRegistry:
+    """Standalone version of the registry logic to keep this script independent."""
+    def __init__(self, cache_dir: Path):
+        self.cache_dir = cache_dir
+        self.registry_path = cache_dir / "registry.json"
+        
+    def get_registry(self):
+        if not self.registry_path.exists():
+            return {}
+        try:
+            with open(self.registry_path, "r") as f:
+                return json.load(f)
+        except Exception:
+            return {}
+
+    def update(self, model_name: str, engine_filename: str):
+        registry = self.get_registry()
+        registry[model_name] = engine_filename
+        with open(self.registry_path, "w") as f:
+            json.dump(registry, f, indent=4)
+
+    def get_snapshot(self):
+        return {f.name for f in self.cache_dir.glob("*.engine")}
+
 def setup_windows_dll_discovery():
     """Manually discover and register NVIDIA DLL directories on Windows."""
     if platform.system() != "Windows":
@@ -57,50 +81,16 @@ def setup_windows_dll_discovery():
         except Exception:
             pass
 
-def get_engine_from_cache(model_name: str, cache_dir: Path):
-    """Finds the most recent engine file for a given model in the cache."""
-    # Since engine files are hash-based, we look for matches in registry.json first
-    registry_path = cache_dir / "registry.json"
-    if registry_path.exists():
-        with open(registry_path, "r") as f:
-            registry = json.load(f)
-            if model_name in registry:
-                engine_file = cache_dir / registry[model_name]
-                if engine_file.exists():
-                    return registry[model_name]
-    
-    # Fallback: crude scan (not recommended but for robustness)
-    engines = [f.name for f in cache_dir.glob("*.engine") if f.name.startswith("TensorrtExecutionProvider_TRTKernel")]
-    # Note: TRT engine names usually contain hashes, not model names directly.
-    # Without the registry, we can't be sure which hash belongs to which model perfectly.
-    return None
-
-def update_registry(model_name: str, cache_dir: Path):
-    """Updates registry.json by detecting the newest engine file."""
-    registry_path = cache_dir / "registry.json"
-    registry = {}
-    if registry_path.exists():
-        with open(registry_path, "r") as f:
-            registry = json.load(f)
-            
-    # Find the newest .engine file in the cache
-    engines = list(cache_dir.glob("*.engine"))
-    if not engines:
-        return
-        
-    newest_engine = max(engines, key=os.path.getmtime)
-    registry[model_name] = newest_engine.name
-    
-    with open(registry_path, "w") as f:
-        json.dump(registry, f, indent=4)
-
-def warm_model(model_name: str, cache_dir: Path, threads: int):
+def warm_model(model_name: str, cache_dir: Path, threads: int, registry: StandaloneTrtRegistry):
     """Triggers TensorRT engine compilation for a specific model via rembg."""
     try:
         import onnxruntime as ort
         from rembg import new_session, remove
         
         setup_windows_dll_discovery()
+        
+        # Snapshot state BEFORE warming
+        old_files = registry.get_snapshot()
         
         # Explicit Multi-Threading Configuration
         sess_opts = ort.SessionOptions()
@@ -134,23 +124,31 @@ def warm_model(model_name: str, cache_dir: Path, threads: int):
             # Run one dummy inference to ensure kernels are built
             dummy_img = Image.fromarray(np.zeros((512, 512, 3), dtype=np.uint8))
             remove(dummy_img, session=session)
-            # Record in registry
-            update_registry(model_name, cache_dir)
+            
+            # Snapshot state AFTER warming to find the EXACT engine file
+            new_files = registry.get_snapshot()
+            diff = new_files - old_files
+            
+            if diff:
+                # We found new engines!
+                engine_file = list(diff)[0] # Usually just one
+                registry.update(model_name, engine_file)
+                return True, engine_file
+            else:
+                # No NEW file, maybe it was an update or already existed
+                # Fallback to newest if we're sure it worked
+                engines = list(cache_dir.glob("*.engine"))
+                if engines:
+                    newest = max(engines, key=os.path.getmtime)
+                    registry.update(model_name, newest.name)
+                    return True, newest.name
+            
             return True, None
         else:
             return False, f"TensorrtExecutionProvider missing. Available: {providers}"
             
     except Exception as e:
         return False, str(e)
-
-def monitor_load(stop_event):
-    """Background load monitor."""
-    peak = 0.0
-    while not stop_event[0]:
-        load = psutil.cpu_percent(interval=0.5)
-        if load > peak:
-            peak = load
-    return peak
 
 def main():
     parser = argparse.ArgumentParser(description="Standalone TensorRT Cache Warmer.")
@@ -164,18 +162,15 @@ def main():
     cache_dir = Path(".trt_engine_cache")
     cache_dir.mkdir(parents=True, exist_ok=True)
     
-    registry_path = cache_dir / "registry.json"
-    registry = {}
-    if registry_path.exists():
-        with open(registry_path, "r") as f:
-            registry = json.load(f)
+    registry = StandaloneTrtRegistry(cache_dir)
+    reg_data = registry.get_registry()
 
     print(f"--- Standalone TensorRT Cache Warmer ---")
     print(f"Optimal Threads: {cpu_cores}")
     
-    if registry:
-        print(f"Detected cached models: {len(registry)}")
-        for model, engine in registry.items():
+    if reg_data:
+        print(f"Detected cached models: {len(reg_data)}")
+        for model, engine in reg_data.items():
             print(f"  - {model} -> {engine}")
     else:
         print("No localized model registry found in .trt_engine_cache/")
@@ -183,31 +178,24 @@ def main():
     print(f"Models to warm: {', '.join(args.models)}")
     print("-" * 30)
 
-    # Start CPU monitoring
     peak_usage = 0.0
     
-    # We'll use a simple background monitoring thread (simulated here)
-    def get_peak():
-        return max(psutil.cpu_percent(interval=0.1, percpu=True))
-
     for model_name in tqdm(args.models, desc="Warming models"):
-        if model_name in registry:
-            engine_path = cache_dir / registry[model_name]
+        if model_name in reg_data:
+            engine_path = cache_dir / reg_data[model_name]
             if engine_path.exists():
-                print(f"  [SKIP] '{model_name}' is already cached as {registry[model_name]}")
+                print(f"  [SKIP] '{model_name}' is already cached as {reg_data[model_name]}")
                 continue
             
-        # Start load tracking for this model
-        success, err = warm_model(model_name, cache_dir, cpu_cores)
+        success, res = warm_model(model_name, cache_dir, cpu_cores, registry)
         
         peak_usage = max(peak_usage, max(psutil.cpu_percent(interval=None, percpu=True)))
 
         if success:
-            print(f"  [SUCCESS] Produced engine for '{model_name}'")
+            print(f"  [SUCCESS] Produced engine for '{model_name}': {res}")
         else:
-            print(f"  [ERROR] Failed to warm '{model_name}': {err}")
+            print(f"  [ERROR] Failed to warm '{model_name}': {res}")
 
-    # Final CPU report
     print("-" * 30)
     print(f"Warming process complete.")
     print(f"Peak per-core utilization detected: {peak_usage}%")

@@ -94,3 +94,4 @@ This file tracks the TDD progress, rationale for each test, and current status.
 | `test_background_removal_rgba` | Verifies that background removal produces correct 4-channel output. | ✅ PASSED | Transparency support. |
 | `test_warmer_utilizes_multiple_cores` | Verifies that the warmer utility hits multiple logical cores during compilation. | ✅ PASSED | Multi-thread baseline confirmed. |
 | `test_warmer_produces_registry` | Verifies that the warmer utility produces a registry.json file. | ✅ PASSED | Human-readable cache mapping active. |
+| `test_registry_sync_and_accurate_mapping` | Verifies that BackgroundRemover and Warmer correctly sync via registry. | ✅ PASSED | Multi-interface sync verified. |

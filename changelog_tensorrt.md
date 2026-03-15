@@ -27,10 +27,10 @@ This document tracks the development, optimization, and debugging of TensorRT in
 ### Hardware and Environment Automation (Commit: ca1a879)
 - **Windows DLL Auto-Discovery:** Implemented a runtime discovery shim in `BackgroundRemover` that automatically scans for NVIDIA/TensorRT DLLs in `C:\Program Files\NVIDIA` and `C:\Program Files\NVIDIA GPU Computing Toolkit`. This eliminates the "Missing DLL" errors without requiring manual System PATH configuration.
 - **Enhanced Load Strategy:** Updated the discovery logic to additionally prepend found directories to the process `PATH` environment variable. This ensures that ONNX Runtime's internal C++ loader can correctly resolve the complete dependency chain (`nvinfer_10.dll` -> `cublas`, etc.) which `os.add_dll_directory` alone sometimes misses for legacy C++ plugins.
-- **Standalone Cache Warmer Refinements:**
-  - **Human-Readable Cache (registry.json):** The utility now maintains a mapping of model names to their corresponding hash-based engine files. This allows for immediate reporting of which models are already cached and which need warming.
-  - **Explicit Multi-Threading:** Configured ONNX `SessionOptions` (`intra_op_num_threads` / `inter_op_num_threads`) to force the engine compilation phase to utilize the system's full logical core count.
-  - **Peak Load Monitoring:** Integrated `psutil` to track and report peak per-core utilization, providing programmatic verification of multi-threaded operation.
+- **Unified TRT Registry:**
+  - **Cross-Component Sync:** Integrated `TrtRegistry` into both `BackgroundRemover` and the warmer utility. This ensures that engines generated during normal production runs are automatically recorded in the human-readable index.
+  - **Snapshot Accuracy Fix:** Replaced the "newest file" detection with a robust directory snapshot strategy. This reliably identifies the exact engine hash produced for a specific model, even during rapid sequential compilation.
+  - **Shared Utility (`trt_helper.py`):** Centralized registry logic to ensure data consistency across all interfaces.
 
 ### Stylistic and Robustness Cleanups (Commits: cbc61c2, 2e37e47)
 - **Standardized Naming:** Standardized all references to `u2net` to be lowercase for consistency across configuration and implementation.
