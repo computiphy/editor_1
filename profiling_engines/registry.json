@@ -1,0 +1,4 @@
+{
+    "u2net": "TensorrtExecutionProvider_TRTKernel_graph_torch-jit-export_14925151155846691649_0_0_sm86.engine",
+    "birefnet-portrait": "TensorrtExecutionProvider_TRTKernel_graph_torch_jit_9315267804196281032_0_0_sm86.engine"
+}
