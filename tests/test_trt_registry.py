@@ -23,56 +23,58 @@ def test_registry_sync_and_accurate_mapping():
     if not cache_dir.exists():
         cache_dir.mkdir(parents=True)
         
-    # Move existing registry/engines out to a temp backup
+    # Create a backup directory
     backup_dir = Path(".trt_engine_cache_backup")
     if backup_dir.exists():
         shutil.rmtree(backup_dir)
     backup_dir.mkdir()
     
-    existing_engine_file = None
+    # Copy existing registry and engines to backup
     if registry_path.exists():
-        with open(registry_path, "r") as f:
-            reg = json.load(f)
-            if model_name in reg:
-                existing_engine_file = cache_dir / reg[model_name]
-                if existing_engine_file.exists():
-                    shutil.move(str(existing_engine_file), str(backup_dir))
+        shutil.copy(str(registry_path), str(backup_dir))
         os.remove(registry_path)
     
-    # Also move any other u2net related engines
-    for f in cache_dir.glob("*.engine"):
-        # We don't know for sure which is u2net without registry, 
-        # but the user said they saw multiples mapping to same.
-        # We move them all for a "pure" test.
-        shutil.move(str(f), str(backup_dir))
+    # Copy all engines and remove from active dir for a clean test
+    original_engines = list(cache_dir.glob("*.engine"))
+    for engine in original_engines:
+        shutil.copy(str(engine), str(backup_dir))
+        os.remove(engine)
 
     try:
         # 2. RUN: Main pipeline simulation (BackgroundRemover)
-        # This SHOULD trigger registry creation/update in the Green phase
         remover = BackgroundRemover(model=model_name, device="tensorrt")
         remover._get_session()
         
         # 3. VERIFY
-        assert registry_path.exists(), "RED PHASE: BackgroundRemover did not create/update registry.json"
+        assert registry_path.exists(), "BackgroundRemover did not create/update registry.json"
         
         with open(registry_path, "r") as f:
             registry = json.load(f)
             
-        assert model_name in registry, f"RED PHASE: '{model_name}' not found in registry"
+        assert model_name in registry, f"'{model_name}' not found in registry"
         
         engine_filename = registry[model_name]
         engine_path = cache_dir / engine_filename
-        assert engine_path.exists(), f"RED PHASE: Cached engine file {engine_filename} missing from disk"
+        assert engine_path.exists(), f"Cached engine file {engine_filename} missing from disk"
         
-        # Check for the multi-mapping bug
-        # If we warm another model, they should NOT share the same file
-        # (Using u2netp or birefnet-portrait if available, but u2netp is closest to u2net)
-    
     finally:
-        # CLEANUP: Restore backup
-        # (In a real test we might just delete the temp, but for the user's dev env we restore)
-        # However, for the SAKE of this TDD, we leave it to see the state if it fails.
-        pass
+        # CLEANUP: Restore everything from backup and remove test engine
+        # Remove any engine created by the test to avoid junk
+        if registry_path.exists():
+            with open(registry_path, "r") as f:
+                reg = json.load(f)
+                if model_name in reg:
+                    test_engine = cache_dir / reg[model_name]
+                    if test_engine.exists():
+                        os.remove(test_engine)
+            os.remove(registry_path)
+
+        # Restore original files
+        for f in backup_dir.glob("*"):
+            shutil.move(str(f), str(cache_dir))
+        
+        if backup_dir.exists():
+            shutil.rmtree(backup_dir)
 
 if __name__ == "__main__":
     pytest.main([__file__])

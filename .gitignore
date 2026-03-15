@@ -56,3 +56,4 @@ Thumbs.db
 .png
 .raw
 .trt_engine_cache/
+.trt_engine_cache_backup/

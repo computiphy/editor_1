@@ -486,7 +486,7 @@ pip install onnxruntime-gpu
 # 3. Pre-compile model engines for maximum performance:
 # This script uses all available CPU threads to build the hardware-specific 
 # engines before you start your real photography pipeline.
-python scripts/warm_trt_cache.py birefnet-portrait u2net
+python scripts/warm_trt_cache.py <model_name> # multiple models can be specified
 
 # The pipeline will automatically discover the required DLLs (nvinfer_10.dll, etc.) 
 # from your system or virtual environment.
@@ -513,8 +513,9 @@ python scripts/warm_trt_cache.py birefnet-portrait birefnet-massive u2net
 The script will:
 1. Detect existing cached engines in `.trt_engine_cache/`.
 2. Report the optimal thread count for your system.
-3. Automatically build missing engines using all available CPU threads.
-4. Skip models that already have valid cache files.
+3. Automatically build missing engines using all available CPU threads (explicitly configured via `intra_op_num_threads`).
+4. Skip models that already have valid cache files (identified via `registry.json`).
+5. **Human-Readable Reporting**: Maps cryptographic engine hashes to model names for easy management.
 
 ---
 
@@ -581,6 +582,7 @@ wedding_ai_pipeline/
 │   │   ├── image_io.py         # Image load/save helpers
 │   │   ├── tiling.py           # VRAM tiling for low-memory GPUs
 │   │   ├── gpu.py              # Device detection (CUDA/CPU)
+│   │   ├── trt_helper.py       # TensorRT registry and cache management
 │   │   └── pdf_gen.py          # PDF report generation
 │   └── core/
 │       ├── models.py           # Data models (ImageScore, PipelineResult)

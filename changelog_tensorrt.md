@@ -31,6 +31,7 @@ This document tracks the development, optimization, and debugging of TensorRT in
   - **Cross-Component Sync:** Integrated `TrtRegistry` into both `BackgroundRemover` and the warmer utility. This ensures that engines generated during normal production runs are automatically recorded in the human-readable index.
   - **Snapshot Accuracy Fix:** Replaced the "newest file" detection with a robust directory snapshot strategy. This reliably identifies the exact engine hash produced for a specific model, even during rapid sequential compilation.
   - **Shared Utility (`trt_helper.py`):** Centralized registry logic to ensure data consistency across all interfaces.
+- **Non-destructive Test Suite Refinement:** Corrected `tests/test_trt_registry.py` to use a safe backup/restore flow (copy rather than move) for existing engines, ensuring the user's cache remains intact after verification.
 
 ### Stylistic and Robustness Cleanups (Commits: cbc61c2, 2e37e47)
 - **Standardized Naming:** Standardized all references to `u2net` to be lowercase for consistency across configuration and implementation.
