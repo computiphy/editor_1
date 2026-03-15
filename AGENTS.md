@@ -22,3 +22,6 @@ Use the principles outlined below to guide your planning and activities.
 ## Requirements and Instructions
 - Assume as little as possible - clarify any requirements that are unclear
 - Do not use emojis in code and comments
+- When asked a question, answer it first before running commands or writing code.
+- For every change, update the changelog.
+- For every new or deleted test, and also on successful/failed tests, update test.md.

@@ -89,3 +89,8 @@ This file tracks the TDD progress, rationale for each test, and current status.
 | `test_acescg_roundtrip` | sRGB → ACEScg → sRGB is identity. | ✅ PASSED | P5: Transform invertibility. |
 | `test_black_stays_black` | Pure black is preserved in ACEScg. | ✅ PASSED | P5: Foundation stability. |
 | `test_edge_values_no_nan` | Near-zero/one values don't produce NaN. | ✅ PASSED | P5: Numerical robustness. |
+| `test_tensorrt_execution_provider_loads` | Verifies that the internal C++ DLL loader can find and initialize TensorRT. | ✅ PASSED | Critical for high-speed background removal. |
+| `test_trt_warmer_cli_and_output` | Validates that the pre-compilation script correctly triggers engine generation. | ✅ PASSED | Reduces production cold-start lag. |
+| `test_background_removal_rgba` | Verifies that background removal produces correct 4-channel output. | ✅ PASSED | Transparency support. |
+| `test_warmer_utilizes_multiple_cores` | Verifies that the warmer utility hits multiple logical cores during compilation. | ✅ PASSED | Multi-thread baseline confirmed. |
+| `test_warmer_produces_registry` | Verifies that the warmer utility produces a registry.json file. | ✅ PASSED | Human-readable cache mapping active. |

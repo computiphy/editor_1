@@ -483,8 +483,13 @@ pip install onnxruntime-gpu
 # To enable TensorRT acceleration on Windows
 # 1. Install NVIDIA CUDA Toolkit 12.x and cuDNN 9.x at the system level.
 # 2. Add 'tensorrt' as the device in your configuration YAML.
-# 3. The pipeline will automatically discover the required DLLs (nvinfer_10.dll, etc.) 
-#    from your system or virtual environment.
+# 3. Pre-compile model engines for maximum performance:
+# This script uses all available CPU threads to build the hardware-specific 
+# engines before you start your real photography pipeline.
+python scripts/warm_trt_cache.py birefnet-portrait u2net
+
+# The pipeline will automatically discover the required DLLs (nvinfer_10.dll, etc.) 
+# from your system or virtual environment.
 ```
 Note for TensorRT users: The very first time you process an image using the tensorrt device, the pipeline will pause for a few minutes while TensorRT mathematically compiles a hardware-specific neural engine. This built engine is saved in .trt_engine_cache/, meaning subsequent pipeline runs will load the engine almost instantly.
 
@@ -493,6 +498,23 @@ Requirements:
 - NVIDIA GPU with CUDA (recommended) or CPU
 - Minimum 4GB VRAM (tiling enabled) or 8GB+ (tiling disabled)
 - For TensorRT: NVIDIA TensorRT 10.x C++ libraries installed.
+
+### Pre-compiling TensorRT Engines
+TensorRT requires a hardware-specific neural engine to be built for each model. This process is computationally expensive and can take several minutes per model. To avoid wait times during production, use the warmer script:
+
+```bash
+# Warm a specific model
+python scripts/warm_trt_cache.py birefnet-portrait
+
+# Warm multiple models at once
+python scripts/warm_trt_cache.py birefnet-portrait birefnet-massive u2net
+```
+
+The script will:
+1. Detect existing cached engines in `.trt_engine_cache/`.
+2. Report the optimal thread count for your system.
+3. Automatically build missing engines using all available CPU threads.
+4. Skip models that already have valid cache files.
 
 ---
 

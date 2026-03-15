@@ -137,8 +137,6 @@ class BackgroundRemover:
                         # VERY IMPORTANT: Restrict ONNX to 1 CPU thread when using GPU.
                         # Otherwise it spawns threads = logical cores, starving Python threads.
                         os.environ["OMP_NUM_THREADS"] = "1"
-                    else:
-                        providers = ["CPUExecutionProvider"]
                         # Restrict to 2 threads for CPU inference to balance load
                         os.environ["OMP_NUM_THREADS"] = "2"
                         

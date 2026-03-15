@@ -27,17 +27,25 @@ This document tracks the development, optimization, and debugging of TensorRT in
 ### Hardware and Environment Automation (Commit: ca1a879)
 - **Windows DLL Auto-Discovery:** Implemented a runtime discovery shim in `BackgroundRemover` that automatically scans for NVIDIA/TensorRT DLLs in `C:\Program Files\NVIDIA` and `C:\Program Files\NVIDIA GPU Computing Toolkit`. This eliminates the "Missing DLL" errors without requiring manual System PATH configuration.
 - **Enhanced Load Strategy:** Updated the discovery logic to additionally prepend found directories to the process `PATH` environment variable. This ensures that ONNX Runtime's internal C++ loader can correctly resolve the complete dependency chain (`nvinfer_10.dll` -> `cublas`, etc.) which `os.add_dll_directory` alone sometimes misses for legacy C++ plugins.
-- **Venv Integration:** Added automatic registration of pip-installed NVIDIA binaries inside the virtual environment as a secondary search layer.
+- **Standalone Cache Warmer Refinements:**
+  - **Human-Readable Cache (registry.json):** The utility now maintains a mapping of model names to their corresponding hash-based engine files. This allows for immediate reporting of which models are already cached and which need warming.
+  - **Explicit Multi-Threading:** Configured ONNX `SessionOptions` (`intra_op_num_threads` / `inter_op_num_threads`) to force the engine compilation phase to utilize the system's full logical core count.
+  - **Peak Load Monitoring:** Integrated `psutil` to track and report peak per-core utilization, providing programmatic verification of multi-threaded operation.
 
-### Stylistic and Robustness Cleanups (Commit: cbc61c2)
+### Stylistic and Robustness Cleanups (Commits: cbc61c2, 2e37e47)
 - **Standardized Naming:** Standardized all references to `u2net` to be lowercase for consistency across configuration and implementation.
 - **Improved Test Suite:** Enhanced `tests/test_tensorrt_init.py` to robustly handle `rembg` session wrapping, ensuring precise provider verification. Used standard TDD cycles (Red-Green-Refactor) for all stability improvements.
-- **Emoji Removal:** Stripped all emojis from code comments, print statements, and documentation to adhere to project standards.
+- **Emoji Removal:** Stripped all emojis from code comments, print statements, and documentation to adhere to AGENTS.md standards.
+- **README Refinement:** Clarified the installation process for `onnxruntime-gpu` vs. specific CUDA/cuDNN extras, recommending system-level libraries for TensorRT.
 
 ### Documentation and Safety
 - **README.md:** Updated with specific `pip install onnxruntime-gpu` instructions and clear warnings about Windows-specific binary requirements for TensorRT.
 - **Hardware Scaling:** Documented the "VRAM Inflation" behavior, where 1GB models expand to 12GB+ during inference due to activation maps.
 - **Git Hygiene:** Added `.trt_engine_cache/` to `.gitignore` to prevent multi-gigabyte binary engines from bloating the repository.
+
+### Performance Tuning Insights (Hardware Scaling)
+- **OMP_NUM_THREADS (TensorRT):** Restricted to 1 during model load/inference. This prevents ONNX from spawning backend C++ threads that would otherwise starve the parallel CPU color grading workers.
+- **CPU Backend Thread Limit:** Restricted to 2 threads. This provides a balance between inference speed and system responsiveness, preventing background removal from highjacking all physical cores and causing massive context-switching overhead for the rest of the pipeline.
 
 ### Diagnostic Scripts (Developed and Retired)
 - `test_dll.py`: Primitive `ctypes` loader to check `PATH` visibility.
