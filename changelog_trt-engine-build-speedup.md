@@ -8,4 +8,9 @@
 
 ### Changed
 - Refactored `scripts/warm_trt_cache.py` for parallelization and SOLID compliance. (Commit: `b7d8ddd`)
+- Optimized `ParallelWarmer` to support sequential execution for single models/workers to enable profiling. (Commit: `beffdf8`)
+- Captured and committed cProfile data for `u2net` and `birefnet-portrait`.
+- Expanded `MODEL_MAP` in `background_remover.py` to support 16 models from `rembg`.
+- Updated `README.md` and `configs/` with full model lists and profiled/estimated performance metrics for Hardware Config 2.
+- Implemented automatic concurrency capping in `ParallelWarmer`.
 

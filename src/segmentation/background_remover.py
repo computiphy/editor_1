@@ -26,13 +26,22 @@ from src.utils.trt_helper import TrtRegistry
 
 # Map config-friendly names to rembg session names
 MODEL_MAP = {
-    "birefnet-portrait": "birefnet-portrait",
-    "birefnet-massive": "birefnet-massive",
-    "birefnet-general": "birefnet-general",
-    "bria-rmbg": "bria-rmbg",
     "u2net": "u2net",
     "u2netp": "u2netp",
+    "u2net_human_seg": "u2net_human_seg",
+    "u2net_cloth_seg": "u2net_cloth_seg",
+    "silueta": "silueta",
     "isnet-general-use": "isnet-general-use",
+    "isnet-anime": "isnet-anime",
+    "sam": "sam",
+    "birefnet-general": "birefnet-general",
+    "birefnet-general-lite": "birefnet-general-lite",
+    "birefnet-portrait": "birefnet-portrait",
+    "birefnet-dis": "birefnet-dis",
+    "birefnet-hrsod": "birefnet-hrsod",
+    "birefnet-cod": "birefnet-cod",
+    "birefnet-massive": "birefnet-massive",
+    "bria-rmbg": "bria-rmbg",
 }
 
 

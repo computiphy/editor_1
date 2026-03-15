@@ -263,15 +263,31 @@ color_grading:
 
 **Output:** Saved as PNG files in a `cutouts/` directory alongside the `final/` graded images.
 
-#### Available Models:
+#### Available Models (Config 2 Hardware: RTX 3070 Ti + 8-core CPU)
 
-| Model | Quality | Speed | Best For |
-|:------|:--------|:------|:---------|
-| **`birefnet-portrait`** ⭐ | Excellent | ~55s/img | **People, weddings, portraits** |
-| `birefnet-massive` | Highest | ~90s/img | Any scene, maximum accuracy |
-| `birefnet-general` | Very Good | ~45s/img | General-purpose |
-| `bria-rmbg` | Good | ~15s/img | Fast commercial-grade |
-| `u2net` | Fair | ~14s/img | Simple objects only |
+The timings below reflect **Hardware Config 2**. Warm-up is a one-time cold build; Inference is the per-image processing speed once cached.
+
+| Model | Quality | Warm-up (Once) | Inference (s/img) | Best For |
+|:------|:--------|:---------------|:-------------------|:---------|
+| **`birefnet-portrait`** ⭐ | Excellent | **487s** ^ | **~4.5s** ^ | **People, portraits (RECOMMENDED)** |
+| `birefnet-massive` | Highest | ~800s * | ~7.5s * | Any scene, maximum accuracy |
+| `birefnet-general` | Very Good | ~400s * | ~4.0s * | General-purpose |
+| `bria-rmbg` | Good | ~100s * | ~1.5s * | Fast commercial-grade |
+| `u2net_human_seg` | Good | ~80s * | ~1.5s * | Legacy human segmentation |
+| `u2net` | Fair | **77s** ^ | **~1.2s** * | Simple objects |
+| `u2netp` | Fair | ~50s * | ~0.8s * | Ultra-lightweight |
+| `silueta` | Fair | ~60s * | ~1.0s * | Small footprint (43MB) |
+| `isnet-general-use`| Good | ~90s * | ~1.8s * | General purpose |
+| `isnet-anime` | Excellent | ~120s * | ~2.2s * | **Anime / Illustrations** |
+| `sam` | Variable | Variable | Variable | Any use case (Segment Anything) |
+| `birefnet-general-lite`| Good | ~200s * | ~2.5s * | Light general model |
+| `birefnet-dis` | Excellent | ~450s * | ~4.0s * | Dichotomous Image Seg (DIS) |
+| `birefnet-hrsod` | Excellent | ~450s * | ~4.2s * | High-res Salient Objects (HRSOD) |
+| `birefnet-cod` | Excellent | ~450s * | ~4.2s * | Concealed Object Detection (COD) |
+| `u2net_cloth_seg` | Good | ~80s * | ~1.5s * | **Clothing parsing (Upper/Lower/Full)** |
+
+^ *Measured via recent profiling on this machine.*
+* *Estimated based on architectural complexity relative to profiled models.*
 
 **Library choices:**
 
@@ -284,7 +300,7 @@ color_grading:
 ```yaml
 background_removal:
   enabled: true                       # true / false
-  model: "birefnet-portrait"          # See model table above
+  model: "birefnet-portrait"          # Options: birefnet-portrait, birefnet-massive, u2net, etc. (16 models total)
 ```
 
 ---
