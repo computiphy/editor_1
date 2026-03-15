@@ -7,20 +7,62 @@ import numpy as np
 import json
 import psutil
 import time
+import threading
+import concurrent.futures
 from pathlib import Path
 from tqdm import tqdm
 from PIL import Image
+from abc import ABC, abstractmethod
+from typing import Dict, List, Set, Tuple, Optional, Any
 
-# NOTE: This script is deliberately standalone and does not import from src/.
-# This ensures it can be run for environment setup without affecting the main project development.
+# --- Interfaces (DIP/ISP) ---
 
-class StandaloneTrtRegistry:
-    """Standalone version of the registry logic to keep this script independent."""
+class IModelRegistry(ABC):
+    @abstractmethod
+    def get_registry(self) -> Dict[str, str]:
+        pass
+
+    @abstractmethod
+    def update(self, model_name: str, engine_filename: str):
+        pass
+
+    @abstractmethod
+    def get_snapshot(self) -> Set[str]:
+        pass
+
+class IEngineWarmer(ABC):
+    @abstractmethod
+    def warm(self, model_name: str, threads: int) -> Tuple[bool, Any]:
+        pass
+
+# --- Concrete Implementations (SRP) ---
+
+class StandaloneTrtRegistry(IModelRegistry):
+    """File-based registry with atomic-ish updates and basic locking."""
     def __init__(self, cache_dir: Path):
         self.cache_dir = cache_dir
         self.registry_path = cache_dir / "registry.json"
+        self._lock_path = cache_dir / "registry.lock"
         
-    def get_registry(self):
+    def _acquire_lock(self, timeout=10):
+        start = time.time()
+        while time.time() - start < timeout:
+            try:
+                # Use exclusive file creation as a lock
+                with open(self._lock_path, "x"):
+                    return True
+            except FileExistsError:
+                time.sleep(0.1)
+        return False
+
+    def _release_lock(self):
+        if self._lock_path.exists():
+            try:
+                os.remove(self._lock_path)
+            except Exception:
+                pass
+
+    def get_registry(self) -> Dict[str, str]:
         if not self.registry_path.exists():
             return {}
         try:
@@ -30,132 +72,207 @@ class StandaloneTrtRegistry:
             return {}
 
     def update(self, model_name: str, engine_filename: str):
-        registry = self.get_registry()
-        registry[model_name] = engine_filename
-        with open(self.registry_path, "w") as f:
-            json.dump(registry, f, indent=4)
+        if not self._acquire_lock():
+            # If we can't get the lock, try anyway but log it (non-ideal but keeps process moving)
+            print(f"  [WARN] Could not acquire registry lock for {model_name}")
+            
+        try:
+            registry = self.get_registry()
+            registry[model_name] = engine_filename
+            
+            # Atomic rename pattern
+            temp_path = self.registry_path.with_suffix(".tmp")
+            with open(temp_path, "w") as f:
+                json.dump(registry, f, indent=4)
+            
+            if self.registry_path.exists():
+                os.remove(self.registry_path)
+            os.rename(temp_path, self.registry_path)
+        finally:
+            self._release_lock()
 
-    def get_snapshot(self):
+    def get_snapshot(self) -> Set[str]:
         return {f.name for f in self.cache_dir.glob("*.engine")}
 
-def setup_windows_dll_discovery():
-    """Manually discover and register NVIDIA DLL directories on Windows."""
-    if platform.system() != "Windows":
-        return
+class RembgEngineWarmer(IEngineWarmer):
+    """Warms engines using the rembg library."""
+    def __init__(self, cache_dir: Path, registry: IModelRegistry):
+        self.cache_dir = cache_dir
+        self.registry = registry
 
-    search_roots = [
-        r"C:\Program Files\NVIDIA",
-        r"C:\Program Files\NVIDIA GPU Computing Toolkit",
-    ]
-    
-    critical_dlls = ["nvinfer_10.dll", "cublas64_12.dll", "cudnn64_9.dll"]
-    found_dirs = set()
-
-    for root in search_roots:
-        if not os.path.exists(root):
-            continue
-            
-        for dirpath, dirnames, filenames in os.walk(root):
-            folder_name = os.path.basename(dirpath).lower()
-            if folder_name not in ["bin", "lib"]:
-                continue
-            
-            for dll in critical_dlls:
-                if dll in filenames:
-                    found_dirs.add(dirpath)
-                    break
-
-    # Add venv site-packages nvidia bins
-    for s in site.getsitepackages():
-        nvidia_path = os.path.join(s, "nvidia")
-        if os.path.exists(nvidia_path):
-            for dirpath, dirnames, filenames in os.walk(nvidia_path):
-                if os.path.basename(dirpath).lower() == "bin":
-                    found_dirs.add(dirpath)
-
-    for d in found_dirs:
+    def warm(self, model_name: str, threads: int) -> Tuple[bool, Any]:
         try:
-            os.add_dll_directory(d)
-            if d not in os.environ["PATH"]:
-                os.environ["PATH"] = d + os.pathsep + os.environ["PATH"]
-        except Exception:
-            pass
+            import onnxruntime as ort
+            from rembg import new_session, remove
+            
+            DllDiscovery.setup()
+            
+            old_files = self.registry.get_snapshot()
+            
+            sess_opts = ort.SessionOptions()
+            sess_opts.intra_op_num_threads = threads
+            sess_opts.inter_op_num_threads = threads
+            sess_opts.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
+            
+            providers = [
+                ("TensorrtExecutionProvider", {
+                    "trt_engine_cache_enable": True,
+                    "trt_engine_cache_path": str(self.cache_dir)
+                }),
+                ("CUDAExecutionProvider", {
+                    "cudnn_conv_algo_search": "HEURISTIC",
+                    "arena_extend_strategy": "kNextPowerOfTwo"
+                }),
+                "CPUExecutionProvider"
+            ]
+            
+            session = new_session(model_name, providers=providers)
+            
+            if hasattr(session, 'inner_session'):
+                ort_session = session.inner_session
+            else:
+                ort_session = session
+                
+            active_providers = ort_session.get_providers()
+            if "TensorrtExecutionProvider" in active_providers:
+                dummy_img = Image.fromarray(np.zeros((512, 512, 3), dtype=np.uint8))
+                remove(dummy_img, session=session)
+                
+                new_files = self.registry.get_snapshot()
+                diff = new_files - old_files
+                
+                if diff:
+                    engine_file = list(diff)[0]
+                    self.registry.update(model_name, engine_file)
+                    return True, engine_file
+                else:
+                    engines = list(self.cache_dir.glob("*.engine"))
+                    if engines:
+                        newest = max(engines, key=os.path.getmtime)
+                        self.registry.update(model_name, newest.name)
+                        return True, newest.name
+                
+                return True, None
+            else:
+                return False, f"TensorrtExecutionProvider missing. Available: {active_providers}"
+                
+        except Exception as e:
+            return False, str(e)
 
-def warm_model(model_name: str, cache_dir: Path, threads: int, registry: StandaloneTrtRegistry):
-    """Triggers TensorRT engine compilation for a specific model via rembg."""
-    try:
-        import onnxruntime as ort
-        from rembg import new_session, remove
-        
-        setup_windows_dll_discovery()
-        
-        # Snapshot state BEFORE warming
-        old_files = registry.get_snapshot()
-        
-        # Explicit Multi-Threading Configuration
-        sess_opts = ort.SessionOptions()
-        sess_opts.intra_op_num_threads = threads
-        sess_opts.inter_op_num_threads = threads
-        sess_opts.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
-        
-        providers = [
-            ("TensorrtExecutionProvider", {
-                "trt_engine_cache_enable": True,
-                "trt_engine_cache_path": str(cache_dir)
-            }),
-            ("CUDAExecutionProvider", {
-                "cudnn_conv_algo_search": "HEURISTIC",
-                "arena_extend_strategy": "kNextPowerOfTwo"
-            }),
-            "CPUExecutionProvider"
+class DllDiscovery:
+    """Handles Windows DLL discovery logic."""
+    @staticmethod
+    def setup():
+        if platform.system() != "Windows":
+            return
+
+        search_roots = [
+            r"C:\Program Files\NVIDIA",
+            r"C:\Program Files\NVIDIA GPU Computing Toolkit",
         ]
         
-        # Instantiate session with TRT
-        session = new_session(model_name, providers=providers)
+        critical_dlls = ["nvinfer_10.dll", "cublas64_12.dll", "cudnn64_9.dll"]
+        found_dirs = set()
+
+        for root in search_roots:
+            if not os.path.exists(root):
+                continue
+                
+            for dirpath, dirnames, filenames in os.walk(root):
+                folder_name = os.path.basename(dirpath).lower()
+                if folder_name not in ["bin", "lib"]:
+                    continue
+                
+                for dll in critical_dlls:
+                    if dll in filenames:
+                        found_dirs.add(dirpath)
+                        break
+
+        for s in site.getsitepackages():
+            nvidia_path = os.path.join(s, "nvidia")
+            if os.path.exists(nvidia_path):
+                for dirpath, dirnames, filenames in os.walk(nvidia_path):
+                    if os.path.basename(dirpath).lower() == "bin":
+                        found_dirs.add(dirpath)
+
+        for d in found_dirs:
+            try:
+                os.add_dll_directory(d)
+                if d not in os.environ["PATH"]:
+                    os.environ["PATH"] = d + os.pathsep + os.environ["PATH"]
+            except Exception:
+                pass
+
+# --- Parallel Orchestrator (SRP/OCP) ---
+
+class ParallelWarmer:
+    """Orchestrates parallel warming of multiple models."""
+    def __init__(self, models: List[str], base_warmer: IEngineWarmer, registry: IModelRegistry, max_workers: int):
+        self.models = models
+        self.base_warmer = base_warmer
+        self.registry = registry
+        self.max_workers = max_workers
+        self.cpu_cores = os.cpu_count() or 1
+        # Distribute threads: fewer threads per model if running multiple models
+        self.threads_per_worker = max(1, self.cpu_cores // max_workers)
+
+    def run(self) -> Dict[str, Tuple[bool, Any]]:
+        results = {}
         
-        # Verify provider
-        if hasattr(session, 'inner_session'):
-            ort_session = session.inner_session
-        else:
-            ort_session = session
-            
-        providers = ort_session.get_providers()
-        if "TensorrtExecutionProvider" in providers:
-            # Run one dummy inference to ensure kernels are built
-            dummy_img = Image.fromarray(np.zeros((512, 512, 3), dtype=np.uint8))
-            remove(dummy_img, session=session)
-            
-            # Snapshot state AFTER warming to find the EXACT engine file
-            new_files = registry.get_snapshot()
-            diff = new_files - old_files
-            
-            if diff:
-                # We found new engines!
-                engine_file = list(diff)[0] # Usually just one
-                registry.update(model_name, engine_file)
-                return True, engine_file
+        # Filter out already cached models to avoid redundant work in subprocesses
+        reg_data = self.registry.get_registry()
+        models_to_build = []
+        for m in self.models:
+            if m in reg_data and (self.registry.cache_dir / reg_data[m]).exists():
+                print(f"  [SKIP] '{m}' is already cached as {reg_data[m]}")
+                results[m] = (True, reg_data[m])
             else:
-                # No NEW file, maybe it was an update or already existed
-                # Fallback to newest if we're sure it worked
-                engines = list(cache_dir.glob("*.engine"))
-                if engines:
-                    newest = max(engines, key=os.path.getmtime)
-                    registry.update(model_name, newest.name)
-                    return True, newest.name
+                models_to_build.append(m)
+
+        if not models_to_build:
+            return results
+
+        print(f"Building {len(models_to_build)} models in parallel using {self.max_workers} workers...")
+        
+        with concurrent.futures.ProcessPoolExecutor(max_workers=self.max_workers) as executor:
+            # We must use a top-level function or a class method that can be pickled for the sub-process
+            future_to_model = {
+                executor.submit(_warm_worker, m, self.threads_per_worker, type(self.base_warmer), str(self.registry.cache_dir)): m 
+                for m in models_to_build
+            }
             
-            return True, None
-        else:
-            return False, f"TensorrtExecutionProvider missing. Available: {providers}"
-            
-    except Exception as e:
-        return False, str(e)
+            for future in tqdm(concurrent.futures.as_completed(future_to_model), total=len(future_to_model), desc="Parallel Build"):
+                model = future_to_model[future]
+                try:
+                    success, res = future.result()
+                    results[model] = (success, res)
+                    if success:
+                        print(f"  [SUCCESS] '{model}': {res}")
+                    else:
+                        print(f"  [ERROR] '{model}': {res}")
+                except Exception as exc:
+                    results[model] = (False, str(exc))
+                    print(f"  [CRITICAL] '{model}' generated an exception: {exc}")
+                    
+        return results
+
+def _warm_worker(model_name: str, threads: int, warmer_class: type, cache_dir_str: str) -> Tuple[bool, Any]:
+    """Top-level helper for ProcessPoolExecutor to avoid pickling issues."""
+    cache_dir = Path(cache_dir_str)
+    # We re-instantiate within the process to be safe
+    registry = StandaloneTrtRegistry(cache_dir)
+    warmer = warmer_class(cache_dir, registry)
+    return warmer.warm(model_name, threads)
+
+# --- CLI Entry Point ---
 
 def main():
-    parser = argparse.ArgumentParser(description="Standalone TensorRT Cache Warmer.")
+    parser = argparse.ArgumentParser(description="Parallel TensorRT Cache Warmer.")
     parser.add_argument("models", nargs="+", help="Model names (e.g., birefnet-portrait, u2net)")
+    parser.add_argument("--parallel", type=int, default=2, help="Number of models to build concurrently (default: 2)")
     args = parser.parse_args()
 
-    # Optimal thread count for compilation: Use all logical cores
+    # Optimal thread count for compilation: Use all logical cores for OMP if possible
     cpu_cores = os.cpu_count() or 1
     os.environ["OMP_NUM_THREADS"] = str(cpu_cores)
     
@@ -165,8 +282,8 @@ def main():
     registry = StandaloneTrtRegistry(cache_dir)
     reg_data = registry.get_registry()
 
-    print(f"--- Standalone TensorRT Cache Warmer ---")
-    print(f"Optimal Threads: {cpu_cores}")
+    print(f"--- Parallel TensorRT Cache Warmer ---")
+    print(f"System Cores: {cpu_cores}, Parallel Workers: {args.parallel}")
     
     if reg_data:
         print(f"Detected cached models: {len(reg_data)}")
@@ -175,30 +292,18 @@ def main():
     else:
         print("No localized model registry found in .trt_engine_cache/")
 
-    print(f"Models to warm: {', '.join(args.models)}")
+    print(f"Models to process: {', '.join(args.models)}")
     print("-" * 30)
 
-    peak_usage = 0.0
+    start_time = time.time()
     
-    for model_name in tqdm(args.models, desc="Warming models"):
-        if model_name in reg_data:
-            engine_path = cache_dir / reg_data[model_name]
-            if engine_path.exists():
-                print(f"  [SKIP] '{model_name}' is already cached as {reg_data[model_name]}")
-                continue
-            
-        success, res = warm_model(model_name, cache_dir, cpu_cores, registry)
-        
-        peak_usage = max(peak_usage, max(psutil.cpu_percent(interval=None, percpu=True)))
+    warmer = RembgEngineWarmer(cache_dir, registry)
+    orchestrator = ParallelWarmer(args.models, warmer, registry, args.parallel)
+    results = orchestrator.run()
 
-        if success:
-            print(f"  [SUCCESS] Produced engine for '{model_name}': {res}")
-        else:
-            print(f"  [ERROR] Failed to warm '{model_name}': {res}")
-
+    end_time = time.time()
     print("-" * 30)
-    print(f"Warming process complete.")
-    print(f"Peak per-core utilization detected: {peak_usage}%")
+    print(f"Warming process complete in {end_time - start_time:.2f}s.")
 
 if __name__ == "__main__":
     main()

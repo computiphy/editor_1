@@ -8,6 +8,7 @@ Use the principles outlined below to guide your planning and activities.
 - When asked a question, answer it first before running commands or writing code.
 - For every change, update the changelog.
 - For every new or deleted test, and also on successful/failed tests, update test.md.
+- While in planning mode, do not make code or file changes. Create plans instead, and include changes to documentation (changelog, hardware scaling, readme files, python requirements file) in the plan every time.
 
 ## Test-Driven Development (TDD)
 - Always write a failing test before implementing any new functionality or fixing a new bug.
@@ -24,5 +25,5 @@ Use the principles outlined below to guide your planning and activities.
 - Create a git commit for every green test.
 - Use descriptive commit messages that reflect the current state (e.g., `test: add failing test for ...`, `feat: implement ...`, `refactor: clean up ...`).
 - DO NOT git push without explicit instructions.
-- Do not git commit when tests are red.
+- DO NOT git commit when tests are red.
 
