@@ -29,7 +29,7 @@ This document tracks the development, optimization, and debugging of TensorRT in
 - **Enhanced Load Strategy:** Updated the discovery logic to additionally prepend found directories to the process `PATH` environment variable. This ensures that ONNX Runtime's internal C++ loader can correctly resolve the complete dependency chain (`nvinfer_10.dll` -> `cublas`, etc.) which `os.add_dll_directory` alone sometimes misses for legacy C++ plugins.
 - **Venv Integration:** Added automatic registration of pip-installed NVIDIA binaries inside the virtual environment as a secondary search layer.
 
-### Stylistic and Robustness Cleanups (Commit: pending)
+### Stylistic and Robustness Cleanups (Commit: cbc61c2)
 - **Standardized Naming:** Standardized all references to `u2net` to be lowercase for consistency across configuration and implementation.
 - **Improved Test Suite:** Enhanced `tests/test_tensorrt_init.py` to robustly handle `rembg` session wrapping, ensuring precise provider verification. Used standard TDD cycles (Red-Green-Refactor) for all stability improvements.
 - **Emoji Removal:** Stripped all emojis from code comments, print statements, and documentation to adhere to project standards.

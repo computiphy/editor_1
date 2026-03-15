@@ -476,23 +476,23 @@ cd wedding_ai_pipeline
 pip install -e .
 
 # To enable GPU acceleration (CUDA)
-pip install onnxruntime-gpu[cuda,cudnn]
+# Note: If you have CUDA/cuDNN installed at the system level (recommended for TensorRT),
+# a simple install is sufficient:
+pip install onnxruntime-gpu
 
-# To enable TensorRT acceleration on Windows (optional, over GPU)
-# WARNING: There is no dedicated `onnxruntime-tensorrt` PyPi package for Windows.
-# TensorRT functionality is securely bundled inside `onnxruntime-gpu`. 
-# To use it, you MUST manually download the TensorRT 10.x C++ libraries from NVIDIA, 
-# extract them, and add the `bin` folder (containing `nvinfer_10.dll`) to your Windows system PATH.
-
-# Download AI model weights (optional, for restoration)
-python scripts/download_models.py
+# To enable TensorRT acceleration on Windows
+# 1. Install NVIDIA CUDA Toolkit 12.x and cuDNN 9.x at the system level.
+# 2. Add 'tensorrt' as the device in your configuration YAML.
+# 3. The pipeline will automatically discover the required DLLs (nvinfer_10.dll, etc.) 
+#    from your system or virtual environment.
 ```
-*Note for TensorRT users:* The very first time you process an image using the `tensorrt` device, the pipeline will pause for a few minutes while TensorRT mathematically compiles a hardware-specific neural engine. This built engine is securely cached in `.trt_engine_cache/`, meaning subsequent pipeline runs will load the engine almost instantly from your SSD.
+Note for TensorRT users: The very first time you process an image using the tensorrt device, the pipeline will pause for a few minutes while TensorRT mathematically compiles a hardware-specific neural engine. This built engine is saved in .trt_engine_cache/, meaning subsequent pipeline runs will load the engine almost instantly.
 
-**Requirements:**
+Requirements:
 - Python 3.11+
 - NVIDIA GPU with CUDA (recommended) or CPU
 - Minimum 4GB VRAM (tiling enabled) or 8GB+ (tiling disabled)
+- For TensorRT: NVIDIA TensorRT 10.x C++ libraries installed.
 
 ---
 
