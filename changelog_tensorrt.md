@@ -24,6 +24,10 @@ This document tracks the development, optimization, and debugging of TensorRT in
 - **Dynamic Stage Labeling:** Refactored `orchestrator.py` to use context-aware labels (e.g., "Restoration", "Caching", "Grading") based on active configuration flags. This prevents misleading "Grading" logs when the feature is disabled.
 - **UnboundLocalError Fix:** Resolved a crash in the dynamic labeling logic where `bg_remover` was referenced before initialization. Fixed via TDD workflow.
 
+### 🛠️ Hardware & Environment Automation (Commit: `ca1a879`)
+- **Windows DLL Auto-Discovery:** Implemented a runtime discovery shim in `BackgroundRemover` that automatically scans for NVIDIA/TensorRT DLLs in `C:\Program Files\NVIDIA` and `C:\Program Files\NVIDIA GPU Computing Toolkit`. This eliminates the "Missing DLL" errors without requiring manual System PATH configuration.
+- **Venv Integration:** Added automatic registration of pip-installed NVIDIA binaries inside the virtual environment as a secondary search layer.
+
 ### 📝 Documentation & Safety
 - **README.md:** Updated with specific `pip install onnxruntime-gpu` instructions and clear warnings about Windows-specific binary requirements for TensorRT.
 - **Hardware Scaling:** Documented the "VRAM Inflation" behavior, where 1GB models expand to 12GB+ during inference due to activation maps.

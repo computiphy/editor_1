@@ -16,6 +16,11 @@ Supported models (config key: background_removal.model):
 import numpy as np
 from PIL import Image
 from typing import Optional
+import os
+import platform
+import site
+import threading
+import onnxruntime as ort
 
 
 # Map config-friendly names to rembg session names
@@ -34,7 +39,6 @@ class BackgroundRemover:
     """Removes backgrounds from images using rembg + BiRefNet."""
 
     def __init__(self, model: str = "birefnet-portrait", device: str = "cpu"):
-        import threading
         self._lock = threading.Lock()
         self._session = None
         self._model_name = MODEL_MAP.get(model, "birefnet-portrait")
@@ -47,8 +51,6 @@ class BackgroundRemover:
         On Windows, manually discover and register NVIDIA DLL directories.
         This bypasses system PATH issues for CUDA, cuDNN, and TensorRT.
         """
-        import os
-        import platform
         if platform.system() != "Windows":
             return
 
@@ -78,7 +80,6 @@ class BackgroundRemover:
                         break
 
         # Also add current venv site-packages nvidia bins as a backup
-        import site
         for s in site.getsitepackages():
             nvidia_path = os.path.join(s, "nvidia")
             if os.path.exists(nvidia_path):
@@ -88,9 +89,14 @@ class BackgroundRemover:
 
         for d in found_dirs:
             try:
-                # os.add_dll_directory is the modern (3.8+) way to handle this
+                # 1. os.add_dll_directory is the modern (3.8+) way to handle this
                 self._dll_handles.append(os.add_dll_directory(d))
-                # print(f"      [DEBUG] Registered DLL directory: {d}")
+                
+                # 2. ALSO update os.environ["PATH"] because some C++ plugins (like ORT's TensorRT)
+                # still rely on the old PATH search behavior.
+                if d not in os.environ["PATH"]:
+                    os.environ["PATH"] = d + os.pathsep + os.environ["PATH"]
+
             except Exception:
                 pass
 
@@ -100,7 +106,6 @@ class BackgroundRemover:
             with self._lock:
                 # Double-check inside the lock to prevent a race condition
                 if self._session is None:
-                    import os
                     from rembg import new_session
                     
                     if self._device == "tensorrt":
