@@ -95,3 +95,6 @@ This file tracks the TDD progress, rationale for each test, and current status.
 | `test_warmer_utilizes_multiple_cores` | Verifies that the warmer utility hits multiple logical cores during compilation. | ✅ PASSED | Multi-thread baseline confirmed. |
 | `test_warmer_produces_registry` | Verifies that the warmer utility produces a registry.json file. | ✅ PASSED | Human-readable cache mapping active. |
 | `test_registry_sync_and_accurate_mapping` | Verifies that BackgroundRemover and Warmer correctly sync via registry. | ✅ PASSED | Non-destructive sync verified. |
+| `test_parallel_warmer_distributes_work` | Verifies that ParallelWarmer correctly utilizes ProcessPoolExecutor. | ✅ PASSED | TDD parallelization verified. |
+| `test_registry_locking_prevents_corruption` | Verifies that file-based locking prevents registry corruption during concurrent calls. | ✅ PASSED | Concurrency safety verified. |
+| `test_warmer_utilizes_multiple_cores` | Verifies CPU utilization during engine building. | ✅ PASSED | Single-threaded bottleneck confirmed and addressed via parallelization. |
