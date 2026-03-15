@@ -232,9 +232,21 @@ class ParallelWarmer:
         if not models_to_build:
             return results
 
+        if self.max_workers == 1 or len(models_to_build) == 1:
+            print(f"Building {len(models_to_build)} models sequentially...")
+            for m in tqdm(models_to_build, desc="Sequential Build"):
+                success, res = self.base_warmer.warm(m, self.threads_per_worker)
+                results[m] = (success, res)
+                if success:
+                    print(f"  [SUCCESS] '{m}': {res}")
+                else:
+                    print(f"  [ERROR] '{m}': {res}")
+            return results
+
         print(f"Building {len(models_to_build)} models in parallel using {self.max_workers} workers...")
         
         with concurrent.futures.ProcessPoolExecutor(max_workers=self.max_workers) as executor:
+
             # We must use a top-level function or a class method that can be pickled for the sub-process
             future_to_model = {
                 executor.submit(_warm_worker, m, self.threads_per_worker, type(self.base_warmer), str(self.registry.cache_dir)): m 
