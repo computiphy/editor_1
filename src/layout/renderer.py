@@ -134,6 +134,24 @@ class AlbumRenderer:
             )
             layer_img.close()
 
+        # ── Set DPI via PSD RESOLUTION_INFO resource ────────────────
+        #     Without this, Photoshop defaults to 72 PPI.
+        import struct
+        from psd_tools.psd.image_resources import ImageResource
+        from psd_tools.constants import Resource
+
+        # PSD stores resolution as fixed-point 16.16 integers (pixels/inch)
+        h_res = self.dpi << 16
+        v_res = self.dpi << 16
+        # Format: h_res(u32), h_res_unit(u16=1=PPI), width_unit(u16=1=inch),
+        #         v_res(u32), v_res_unit(u16=1=PPI), height_unit(u16=1=inch)
+        res_data = struct.pack('>IHHIHH', h_res, 1, 1, v_res, 1, 1)
+        res_ir = ImageResource(
+            signature=b'8BIM', key=Resource.RESOLUTION_INFO,
+            name='', data=res_data,
+        )
+        psd._record.image_resources[Resource.RESOLUTION_INFO] = res_ir
+
         # ── Save ─────────────────────────────────────────────────
         output_path = output_path.with_suffix(".psd")
         output_path.parent.mkdir(parents=True, exist_ok=True)
