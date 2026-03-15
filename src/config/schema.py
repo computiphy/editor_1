@@ -76,7 +76,7 @@ class BackgroundRemovalConfig(BaseModel):
     workers: Optional[int] = None                   # Defaults to 1 if not set
 
 class LayoutExportConfig(BaseModel):
-    format: str = "jpeg"
+    format: str = "jpeg"            # "jpeg" | "psd" | "both"
     quality: int = 95
 
 class LayoutConfig(BaseModel):

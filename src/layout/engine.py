@@ -132,7 +132,8 @@ class AlbumLayoutEngine:
         album_dir.mkdir(parents=True, exist_ok=True)
 
         # 4. Generate page layouts + render
-        print(f"--- Stage 9: Album Layout ({len(image_chunks)} pages) ---")
+        export_fmt = self.renderer.output_format  # "jpeg" | "psd" | "both"
+        print(f"--- Stage 9: Album Layout ({len(image_chunks)} pages, format={export_fmt}) ---")
         for page_idx, chunk in enumerate(tqdm(image_chunks, desc="Rendering pages")):
             page = self._generate_page(
                 page_number=page_idx + 1,
@@ -142,9 +143,24 @@ class AlbumLayoutEngine:
             )
             pages.append(page)
 
-            # Render to JPEG
-            page_file = album_dir / f"page_{page.page_number:03d}.jpg"
-            self.renderer.render_page(page, page_file, use_cutouts=self.use_cutouts)
+            # Log the selected background
+            bg_name = page.background_path.name if page.background_path else "none"
+            pool_idx = self.bg_selector._pool_index
+            strategy = self.bg_selector.strategy
+            tqdm.write(
+                f"      Page {page.page_number:>3}: bg={bg_name!r}  "
+                f"[strategy={strategy}, pool_pos={pool_idx}/{self.bg_selector.candidate_count}]"
+            )
+
+            # Render JPEG (flat composite)
+            if export_fmt in ("jpeg", "both"):
+                jpg_path = album_dir / f"page_{page.page_number:03d}.jpg"
+                self.renderer.render_page(page, jpg_path, use_cutouts=self.use_cutouts)
+
+            # Render layered PSD (background + each photo as separate layers)
+            if export_fmt in ("psd", "both"):
+                psd_path = album_dir / f"page_{page.page_number:03d}.psd"
+                self.renderer.render_page_psd(page, psd_path, use_cutouts=self.use_cutouts)
 
         # 5. Save project state
         project = AlbumProject(

@@ -1,8 +1,9 @@
 """
 Album Renderer
 ================
-Composites full-resolution JPEG album spreads from PageLayout definitions.
-CPU-bound via Pillow — no VRAM required.
+Composites full-resolution album spreads from PageLayout definitions.
+Supports JPEG (flat) and PSD (layered Photoshop) output.
+CPU-bound via Pillow / psd-tools — no VRAM required.
 """
 
 from pathlib import Path
@@ -13,7 +14,7 @@ from src.layout.models import PageLayout, CellPlacement
 
 class AlbumRenderer:
     """
-    Renders album pages to high-quality JPEG files.
+    Renders album pages to high-quality image files.
     Processes one page at a time for memory efficiency.
     """
 
@@ -23,13 +24,15 @@ class AlbumRenderer:
         self.page_width = page_width
         self.page_height = page_height
         self.quality = quality
-        self.output_format = output_format
+        self.output_format = output_format   # "jpeg" | "psd" | "both"
         self.dpi = dpi
+
+    # ── JPEG Rendering ───────────────────────────────────────────
 
     def render_page(self, page: PageLayout, output_path: Path,
                     use_cutouts: bool = False) -> Path:
         """
-        Render a single album page to a JPEG file.
+        Render a single album page to a flat JPEG file.
 
         Args:
             page: PageLayout with cell placements.
@@ -66,9 +69,113 @@ class AlbumRenderer:
 
         return output_path
 
+    # ── PSD Rendering (Layered Photoshop) ────────────────────────
+
+    def render_page_psd(self, page: PageLayout, output_path: Path,
+                        use_cutouts: bool = False) -> Path:
+        """
+        Render a single album page to a layered Photoshop PSD file.
+
+        Layer structure (bottom to top):
+          • "Background"  — the background image / solid colour fill
+          • "Photo_01"    — first image placed in its cell position
+          • "Photo_02"    — second image …
+          • …
+
+        Each layer is independently movable/editable in Photoshop.
+
+        Args:
+            page: PageLayout with cell placements.
+            output_path: Where to save the PSD (must end in .psd).
+            use_cutouts: If True, use RGBA cutout as the photo layer.
+
+        Returns:
+            Path to the rendered PSD file.
+        """
+        from psd_tools import PSDImage
+
+        psd = PSDImage.new("RGBA", (self.page_width, self.page_height))
+
+        # ── Layer 1: Background ──────────────────────────────────
+        bg_img = Image.new("RGBA", (self.page_width, self.page_height),
+                           (*page.background_color, 255))
+
+        if page.background_path and page.background_path.exists():
+            try:
+                bg_raw = Image.open(page.background_path).convert("RGBA")
+                bg_raw = bg_raw.resize(
+                    (self.page_width, self.page_height), Image.LANCZOS
+                )
+                bg_img = bg_raw
+            except Exception as e:
+                print(f"Warning: Could not load background {page.background_path}: {e}")
+
+        psd.create_pixel_layer(name="Background", image=bg_img, top=0, left=0)
+        bg_img.close()
+
+        # ── Photo layers (one per cell, in z_order) ──────────────
+        sorted_cells = sorted(page.cells, key=lambda c: c.z_order)
+        for idx, cell in enumerate(sorted_cells, start=1):
+            layer_img, offset_x, offset_y = self._prepare_layer(
+                cell, use_cutouts
+            )
+            if layer_img is None:
+                continue
+
+            layer_name = f"Photo_{idx:02d}"
+            if cell.image_path:
+                layer_name = f"Photo_{idx:02d}_{cell.image_path.stem}"
+
+            psd.create_pixel_layer(
+                name=layer_name,
+                image=layer_img,
+                top=offset_y,
+                left=offset_x,
+            )
+            layer_img.close()
+
+        # ── Save ─────────────────────────────────────────────────
+        output_path = output_path.with_suffix(".psd")
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        psd.save(str(output_path))
+
+        return output_path
+
+    # ── Shared helpers ───────────────────────────────────────────
+
+    def _prepare_layer(self, cell: CellPlacement,
+                       use_cutouts: bool):
+        """
+        Load and resize a cell image for layer placement.
+
+        Returns:
+            (RGBA Image, offset_x, offset_y) or (None, 0, 0) on failure.
+        """
+        source_path = None
+        if use_cutouts and cell.cutout_path and cell.cutout_path.exists():
+            source_path = cell.cutout_path
+        elif cell.image_path.exists():
+            source_path = cell.image_path
+        else:
+            print(f"Warning: Image not found: {cell.image_path}")
+            return None, 0, 0
+
+        try:
+            img = Image.open(source_path).convert("RGBA")
+            img = self._fit_to_cell(img, cell.width, cell.height)
+
+            # Center within cell
+            offset_x = cell.x + (cell.width - img.width) // 2
+            offset_y = cell.y + (cell.height - img.height) // 2
+
+            return img, offset_x, offset_y
+        except Exception as e:
+            print(f"Warning: Could not load {source_path}: {e}")
+            return None, 0, 0
+
     def _place_image(self, canvas: Image.Image, cell: CellPlacement,
                      use_cutouts: bool):
-        """Place a single image into its cell on the canvas."""
+        """Place a single image into its cell on the canvas (JPEG path)."""
         # Determine source: cutout (RGBA) or flat image (RGB)
         source_path = None
         is_rgba = False

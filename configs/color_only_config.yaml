@@ -1,11 +1,11 @@
 pipeline:
-  name: "Test_SOTA_V2_BDAY26022026"
-  input_dir: "C:/Swaroop/editor_1/editor_1/input"
+  name: "Test_SOTA_V2_BDAY26022026_trial3"
+  input_dir: "D:/studio/works/B DAY 26-02-26/01/"
   input_formats: ["raw", "jpg", "jpeg"]
-  output_base: "C:/Swaroop/editor_1/editor_1/output"
+  output_base: "D:/studio/tools/vibecoding/editor_1/wedding_ai_pipeline/output"
   gpu_backend: "auto"
   workers: 2                      # Legacy fallback (used if stage-specific workers not set)
-  queue_maxsize: 8                # Bounded queue between grading & BG removal
+  queue_maxsize: 2                # Bounded queue between grading & BG removal
                                   # Config 1 (16GB): 4  |  Config 2 (48GB): 16
   metadata_required: false
 
@@ -14,7 +14,7 @@ culling:
   blur_threshold: 100.0
   duplicate_threshold: 5
   quality_threshold: 70.0
-  workers: 12                     # CPU/Disk bound — use most threads
+  workers: 6                     # CPU/Disk bound — use most threads
                                   # Config 1 (4c/8t): 6  |  Config 2 (8c/16t): 12
 
 restoration:
@@ -28,19 +28,19 @@ restoration:
     overlap: 64
 
 color_grading:
-  enabled: true
+  enabled: false
   method: "lab_statistical"
   style: "vibrant"               # OPTIONS: natural, cinematic, pastel, moody,
                                     #          golden_hour, film_kodak, film_fuji,
                                     #          vibrant, black_and_white
   strength: 1.5                     # 0.0 = no effect, 1.0 = full, 1.5 = max
-  reference_image: "C:/Swaroop/editor_1/editor_1/assets/reference_style.png"
+  reference_image: "D:/studio/tools/vibecoding/editor_1/wedding_ai_pipeline/assets/reference_style.png"
   segmentation_enabled: true       # Set true to enable SAM-based local grading
-  workers: 8                       # CPU/RAM bound — concurrent images being graded
+  workers: 1                       # CPU/RAM bound — concurrent images being graded
                                    # Extremely fast. Safe to scale up to physical core count.
 
 background_removal:
-  enabled: true                     # Set true to generate cutouts (PNG with transparent bg)
+  enabled: false                     # Set true to generate cutouts (PNG with transparent bg)
   model: "birefnet-massive"        # BEST for weddings. Options: birefnet-portrait, birefnet-massive, bria-rmbg, u2net
   device: "gpu"                    # "cpu" or "gpu" (gpu requires onnxruntime-gpu)
   workers: 1                       # VRAM bound — concurrent GPU inferences
@@ -62,7 +62,7 @@ layout:
   ai_style: "magazine"              # classic | elegant | minimal | dynamic | magazine
   ai_seed: 42                       # seed for reproducibility
   export:
-    format: "jpeg"
+    format: "both"                  # "jpeg" | "psd" | "both" (both = JPEG + layered PSD)
     quality: 95
 
 cropping:
