@@ -20,6 +20,10 @@ This document tracks the development, optimization, and debugging of TensorRT in
   - Documented the requirement for system-level installation of CUDA and cuDNN to ensure the Windows DLL loader can follow the dependency chain.
   - Corrected documentation to point to the `bin/` directory rather than `lib/` for PATH configuration.
 
+### 🐛 Bug Fixes & UX Improvements (Commit: `979d7c2`)
+- **Dynamic Stage Labeling:** Refactored `orchestrator.py` to use context-aware labels (e.g., "Restoration", "Caching", "Grading") based on active configuration flags. This prevents misleading "Grading" logs when the feature is disabled.
+- **UnboundLocalError Fix:** Resolved a crash in the dynamic labeling logic where `bg_remover` was referenced before initialization. Fixed via TDD workflow.
+
 ### 📝 Documentation & Safety
 - **README.md:** Updated with specific `pip install onnxruntime-gpu` instructions and clear warnings about Windows-specific binary requirements for TensorRT.
 - **Hardware Scaling:** Documented the "VRAM Inflation" behavior, where 1GB models expand to 12GB+ during inference due to activation maps.

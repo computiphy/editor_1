@@ -40,6 +40,59 @@ class BackgroundRemover:
         self._model_name = MODEL_MAP.get(model, "birefnet-portrait")
         self._device = device.lower()
         print(f"    BG Removal Model: {self._model_name} (device={self._device})")
+        self._dll_handles = []
+
+    def _setup_windows_dll_discovery(self):
+        """
+        On Windows, manually discover and register NVIDIA DLL directories.
+        This bypasses system PATH issues for CUDA, cuDNN, and TensorRT.
+        """
+        import os
+        import platform
+        if platform.system() != "Windows":
+            return
+
+        # Common search roots for NVIDIA/TensorRT installations
+        search_roots = [
+            r"C:\Program Files\NVIDIA",
+            r"C:\Program Files\NVIDIA GPU Computing Toolkit",
+        ]
+        
+        # We look for 'bin' folders that contain critical DLLs
+        critical_dlls = ["nvinfer_10.dll", "cublas64_12.dll", "cudnn64_9.dll"]
+        found_dirs = set()
+
+        for root in search_roots:
+            if not os.path.exists(root):
+                continue
+                
+            for dirpath, dirnames, filenames in os.walk(root):
+                # Optimization: only check 'bin' or 'lib' folders
+                folder_name = os.path.basename(dirpath).lower()
+                if folder_name not in ["bin", "lib"]:
+                    continue
+                
+                for dll in critical_dlls:
+                    if dll in filenames:
+                        found_dirs.add(dirpath)
+                        break
+
+        # Also add current venv site-packages nvidia bins as a backup
+        import site
+        for s in site.getsitepackages():
+            nvidia_path = os.path.join(s, "nvidia")
+            if os.path.exists(nvidia_path):
+                for dirpath, dirnames, filenames in os.walk(nvidia_path):
+                    if os.path.basename(dirpath).lower() == "bin":
+                        found_dirs.add(dirpath)
+
+        for d in found_dirs:
+            try:
+                # os.add_dll_directory is the modern (3.8+) way to handle this
+                self._dll_handles.append(os.add_dll_directory(d))
+                # print(f"      [DEBUG] Registered DLL directory: {d}")
+            except Exception:
+                pass
 
     def _get_session(self):
         """Lazy-load the rembg session (downloads model weights on first use)."""
@@ -49,7 +102,9 @@ class BackgroundRemover:
                 if self._session is None:
                     import os
                     from rembg import new_session
+                    
                     if self._device == "tensorrt":
+                        self._setup_windows_dll_discovery()
                         from pathlib import Path
                         cache_dir = Path(__file__).resolve().parent.parent.parent / ".trt_engine_cache"
                         cache_dir.mkdir(parents=True, exist_ok=True)

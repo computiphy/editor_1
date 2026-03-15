@@ -41,11 +41,11 @@ color_grading:
 
 background_removal:
   enabled: true                     # Set true to generate cutouts (PNG with transparent bg)
-  model: "bria-rmbg"        # BEST for weddings. Options: birefnet-portrait, birefnet-massive, bria-rmbg, u2net
-  device: "gpu"                    # "cpu", "gpu", or "tensorrt" (tensorrt requires onnxruntime-tensorrt)
-  workers: 1                       # VRAM bound — concurrent GPU inferences
-                                   # KEEP AT 1 for deep models (birefnet). >1 causes severe 
-                                   # CUDA context-switching overhead with no throughput gain.
+  model: "u2net"                    # BEST for weddings. Options: birefnet-portrait, birefnet-massive, bria-rmbg, u2net
+  device: "tensorrt"                # "cpu", "gpu", or "tensorrt" (tensorrt requires onnxruntime-tensorrt)
+  workers: 1                        # VRAM bound — concurrent GPU inferences
+                                    # KEEP AT 1 for deep models (birefnet). >1 causes severe 
+                                    # CUDA context-switching overhead with no throughput gain.
 
 layout:
   enabled: false                     # Generate album pages
