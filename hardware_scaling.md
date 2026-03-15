@@ -48,7 +48,8 @@ This document details how specific hardware component upgrades affect the overal
 ### 7. GPU VRAM Capacity
 *   **What it is:** The memory physically on the graphics card (e.g., 4GB vs 8GB vs 24GB).
 *   **Impact on Pipeline:**
-    *   **Restoration & BG Removal:** Forms the hard ceiling for model loading. The `birefnet-portrait` model dynamically scales memory based on resolution. 
+    *   **Restoration & BG Removal:** Forms the hard ceiling for model loading. Note that a small model file size does not equal small VRAM usage. For instance, a 1GB `.onnx` file only represents static model weights. During inference on high-resolution images, the model generates massive intermediate feature maps (activations) that can consume upwards of 12-16GB of VRAM. Additionally, ONNX's arena allocator and the CUDA/CuDNN context add 1-2GB of overhead.
+    *   **Shared Memory Spillover:** If the pipeline's memory footprint exceeds your physical VRAM limit, Windows WDDM will seamlessly fall back to system RAM (Shared GPU Memory) to prevent Out-Of-Memory crashes. However, because system RAM is orders of magnitude slower than GDDR6 VRAM, inference speed will be severely degraded. If you observe high "Shared GPU Memory" usage in Task Manager, you are heavily bottlenecked.
     *   *Note on Concurrency:* Even with 8GB+ VRAM, ONNX Runtime synchronizes its CUDA Execution Provider context. Profiling reveals that running multiple concurrent GPU inference workers (e.g., `workers_gpu: 2` or `3`) causes massive CUDA context-switching delay, often doubling per-image inference time. The optimal strategy is `workers_gpu: 1` letting the single thread process continuously at maximum hardware speed.
 
 ### 8. GPU Compute Power (CUDA Cores & Clock Speed)

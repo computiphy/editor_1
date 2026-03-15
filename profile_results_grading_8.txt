@@ -1,0 +1,88 @@
+Total: 82.19s
+
+         2371373 function calls (2320564 primitive calls) in 85.173 seconds
+
+   Ordered by: cumulative time
+   List reduced from 6739 to 40 due to restriction <40>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+       28    0.262    0.009  307.977   10.999 C:\Swaroop\editor_1\editor_1\venv\Lib\site-packages\tqdm\std.py:1160(__iter__)
+       23    0.031    0.001  302.236   13.141 C:\Users\Joylon\AppData\Local\Programs\Python\Python312\Lib\concurrent\futures\_base.py:199(as_completed)
+        8    0.000    0.000  144.282   18.035 C:\Users\Joylon\AppData\Local\Programs\Python\Python312\Lib\threading.py:1115(join)
+        8    0.000    0.000  144.282   18.035 C:\Users\Joylon\AppData\Local\Programs\Python\Python312\Lib\threading.py:1153(_wait_for_tstate_lock)
+  903/444    2.400    0.003   96.688    0.218 C:\Swaroop\editor_1\editor_1\venv\Lib\site-packages\numpy\_core\fromnumeric.py:2207(clip)
+ 2149/525   16.971    0.008   85.625    0.163 {method 'astype' of 'numpy.ndarray' objects}
+    38/10    0.091    0.002   82.170    8.217 C:\Users\Joylon\AppData\Local\Programs\Python\Python312\Lib\threading.py:637(wait)
+    58/32    0.153    0.003   82.158    2.567 C:\Users\Joylon\AppData\Local\Programs\Python\Python312\Lib\threading.py:323(wait)
+        1    0.000    0.000   82.154   82.154 C:\Swaroop\editor_1\editor_1\src\pipeline\orchestrator.py:29(run)
+  903/444    2.943    0.003   74.784    0.168 C:\Swaroop\editor_1\editor_1\venv\Lib\site-packages\numpy\_core\fromnumeric.py:48(_wrapfunc)
+    26/16    0.014    0.001   74.262    4.641 C:\Swaroop\editor_1\editor_1\venv\Lib\site-packages\PIL\JpegImagePlugin.py:663(_save)
+    26/16    0.038    0.001   73.282    4.580 C:\Swaroop\editor_1\editor_1\venv\Lib\site-packages\PIL\ImageFile.py:641(_save)
+    26/16    0.121    0.005   73.128    4.571 C:\Swaroop\editor_1\editor_1\venv\Lib\site-packages\PIL\ImageFile.py:669(_encode_tile)
+        1    0.000    0.000   72.141   72.141 C:\Users\Joylon\AppData\Local\Programs\Python\Python312\Lib\concurrent\futures\_base.py:646(__exit__)
+        1    0.000    0.000   72.141   72.141 C:\Users\Joylon\AppData\Local\Programs\Python\Python312\Lib\concurrent\futures\thread.py:219(shutdown)
+      8/1    0.000    0.000   72.141   72.141 C:\Users\Joylon\AppData\Local\Programs\Python\Python312\Lib\threading.py:999(run)
+      8/1    0.000    0.000   72.141   72.141 C:\Users\Joylon\AppData\Local\Programs\Python\Python312\Lib\concurrent\futures\thread.py:69(_worker)
+      8/1    0.000    0.000   72.141   72.141 {method 'get' of '_queue.SimpleQueue' objects}
+    44/14    0.224    0.005   71.888    5.135 C:\Swaroop\editor_1\editor_1\src\color\engine.py:671(_get_stats)
+     22/3    0.889    0.040   61.722   20.574 C:\Swaroop\editor_1\editor_1\src\color\engine.py:384(apply_style)
+  903/444    4.481    0.005   32.739    0.074 {method 'clip' of 'numpy.ndarray' objects}
+    22/17    0.237    0.011   29.015    1.707 {addWeighted}
+  548/344    5.130    0.009   27.862    0.081 {cvtColor}
+   110/30    1.180    0.011   25.721    0.857 {GaussianBlur}
+     22/6    0.321    0.015   14.438    2.406 C:\Swaroop\editor_1\editor_1\src\color\engine.py:489(_adjust_contrast)
+     22/3    0.467    0.021   13.807    4.602 C:\Swaroop\editor_1\editor_1\src\color\engine.py:380(apply_transfer)
+     22/3    0.146    0.007   13.747    4.582 C:\Swaroop\editor_1\editor_1\src\color\engine.py:659(_reinhard_transfer)
+        1    0.000    0.000    8.869    8.869 C:\Swaroop\editor_1\editor_1\src\layout\engine.py:87(generate_album)
+  903/444    7.417    0.008    8.145    0.018 C:\Swaroop\editor_1\editor_1\venv\Lib\site-packages\numpy\_core\_methods.py:96(_clip)
+        4    0.023    0.006    7.797    1.949 C:\Swaroop\editor_1\editor_1\src\layout\renderer.py:29(render_page)
+   132/36    0.221    0.002    7.541    0.209 {method 'std' of 'numpy.ndarray' objects}
+       22    0.073    0.003    6.663    0.303 C:\Swaroop\editor_1\editor_1\src\layout\renderer.py:69(_place_image)
+    22/14    0.051    0.002    6.562    0.469 C:\Swaroop\editor_1\editor_1\venv\Lib\site-packages\PIL\Image.py:3251(fromarray)
+    22/14    0.020    0.001    6.411    0.458 C:\Swaroop\editor_1\editor_1\venv\Lib\site-packages\PIL\Image.py:3167(frombuffer)
+   132/36    0.581    0.004    4.898    0.136 C:\Swaroop\editor_1\editor_1\venv\Lib\site-packages\numpy\_core\_methods.py:217(_std)
+5635/4829    4.850    0.001    4.813    0.001 {method 'decode' of 'ImagingDecoder' objects}
+   110/53    0.588    0.005    4.807    0.091 {method 'max' of 'numpy.ndarray' objects}
+       34    0.001    0.000    4.582    0.135 C:\Swaroop\editor_1\editor_1\venv\Lib\site-packages\PIL\Image.py:2220(resize)
+       30    4.496    0.150    4.496    0.150 {method 'resize' of 'ImagingCore' objects}
+       34    0.000    0.000    4.365    0.128 C:\Swaroop\editor_1\editor_1\venv\Lib\site-packages\PIL\Image.py:915(convert)
+
+
+         2371373 function calls (2320564 primitive calls) in 85.173 seconds
+
+   Ordered by: internal time
+   List reduced from 6739 to 30 due to restriction <30>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+ 2149/525   16.971    0.008   85.625    0.163 {method 'astype' of 'numpy.ndarray' objects}
+  903/444    7.417    0.008    8.145    0.018 C:\Swaroop\editor_1\editor_1\venv\Lib\site-packages\numpy\_core\_methods.py:96(_clip)
+   105/18    6.102    0.058    0.918    0.051 C:\Swaroop\editor_1\editor_1\src\color\engine.py:714(_blend)
+  548/344    5.130    0.009   27.862    0.081 {cvtColor}
+5635/4829    4.850    0.001    4.813    0.001 {method 'decode' of 'ImagingDecoder' objects}
+       30    4.496    0.150    4.496    0.150 {method 'resize' of 'ImagingCore' objects}
+  903/444    4.481    0.005   32.739    0.074 {method 'clip' of 'numpy.ndarray' objects}
+  903/444    2.943    0.003   74.784    0.168 C:\Swaroop\editor_1\editor_1\venv\Lib\site-packages\numpy\_core\fromnumeric.py:48(_wrapfunc)
+  903/444    2.400    0.003   96.688    0.218 C:\Swaroop\editor_1\editor_1\venv\Lib\site-packages\numpy\_core\fromnumeric.py:2207(clip)
+  660/393    2.231    0.003    3.542    0.009 {method 'reduce' of 'numpy.ufunc' objects}
+   176/81    1.969    0.011    2.534    0.031 {morphologyEx}
+   110/30    1.180    0.011   25.721    0.857 {GaussianBlur}
+    25952    1.033    0.000    1.033    0.000 {method 'encode' of 'ImagingEncoder' objects}
+    44/24    1.000    0.023    0.989    0.041 {split}
+     22/7    0.892    0.041    0.123    0.018 C:\Swaroop\editor_1\editor_1\src\color\engine.py:431(_adjust_temperature)
+     22/3    0.889    0.040   61.722   20.574 C:\Swaroop\editor_1\editor_1\src\color\engine.py:384(apply_style)
+    66/29    0.818    0.012    0.559    0.019 {LUT}
+     18/5    0.778    0.043    1.137    0.227 C:\Swaroop\editor_1\editor_1\src\color\engine.py:761(_override_sky)
+    26/16    0.728    0.028    0.651    0.041 {method 'encode_to_file' of 'ImagingEncoder' objects}
+    61/47    0.728    0.012    1.199    0.026 {method 'copy' of 'ImagingCore' objects}
+     22/4    0.688    0.031    0.004    0.001 C:\Swaroop\editor_1\editor_1\src\color\engine.py:625(_apply_vignette)
+  286/126    0.677    0.002    0.003    0.000 {method 'acquire' of '_thread.lock' objects}
+     22/3    0.623    0.028    3.062    1.021 C:\Swaroop\editor_1\editor_1\src\color\engine.py:507(_apply_per_channel_hsl)
+   110/53    0.588    0.005    4.807    0.091 {method 'max' of 'numpy.ndarray' objects}
+   132/36    0.586    0.004    3.232    0.090 C:\Swaroop\editor_1\editor_1\venv\Lib\site-packages\numpy\_core\_methods.py:148(_var)
+   132/36    0.581    0.004    4.898    0.136 C:\Swaroop\editor_1\editor_1\venv\Lib\site-packages\numpy\_core\_methods.py:217(_std)
+     22/6    0.521    0.024    2.098    0.350 C:\Swaroop\editor_1\editor_1\src\color\engine.py:604(_adjust_vibrance)
+    66/51    0.499    0.008    0.705    0.014 {method 'copy' of 'numpy.ndarray' objects}
+     22/3    0.494    0.022    0.099    0.033 C:\Swaroop\editor_1\editor_1\src\segmentation\semantic_segmenter.py:61(segment)
+     22/3    0.467    0.021   13.807    4.602 C:\Swaroop\editor_1\editor_1\src\color\engine.py:380(apply_transfer)
+
+

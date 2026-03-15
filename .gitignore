@@ -1,4 +1,5 @@
 # Pipeline Outputs
+input/
 output/
 temp_test_layout/
 run_output.txt
@@ -37,6 +38,7 @@ nosetests.xml
 coverage.xml
 *.cover
 .hypothesis/
+.prof
 
 # Environment
 .env
@@ -53,3 +55,4 @@ Thumbs.db
 .jpeg
 .png
 .raw
+.trt_engine_cache/

@@ -1,8 +1,8 @@
 pipeline:
   name: "Test_SOTA_V2_BDAY26022026"
-  input_dir: "D:/studio/works/B DAY 26-02-26/PHOTOS/"
+  input_dir: "C:/Swaroop/editor_1/editor_1/input"
   input_formats: ["raw", "jpg", "jpeg", "dng"]
-  output_base: "D:/studio/tools/vibecoding/editor_1/wedding_ai_pipeline/output"
+  output_base: "C:/Swaroop/editor_1/editor_1/output"
   output_format: "original"       # Options: "jpeg", "png", "tiff", "original" (DNG/RAW fallback to JPEG)
   gpu_backend: "auto"
   workers: 4
@@ -40,8 +40,8 @@ color_grading:
 # image — zero other editing.  Output goes to output/<name>/lut/
 # Set color_grading.enabled: false to see the raw LUT effect only.
 lut_application:
-  enabled: false
-  lut_path: "assets/luts/TemperatureLUTs/2800 Kelvin - 4300 Kelvin - 0.95 CTO.cube"
+  enabled: true
+  lut_path: "assets/luts/Shutterstock_Free_LUTs/SoftBlackAndWhite.cube"
   lut_intensity: 1.0              # 0.0 = original, 1.0 = full LUT, 0.5 = 50% blend
 
 layout:

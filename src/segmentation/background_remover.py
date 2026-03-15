@@ -49,7 +49,24 @@ class BackgroundRemover:
                 if self._session is None:
                     import os
                     from rembg import new_session
-                    if self._device == "gpu":
+                    if self._device == "tensorrt":
+                        from pathlib import Path
+                        cache_dir = Path(__file__).resolve().parent.parent.parent / ".trt_engine_cache"
+                        cache_dir.mkdir(parents=True, exist_ok=True)
+                        
+                        providers = [
+                            ("TensorrtExecutionProvider", {
+                                "trt_engine_cache_enable": True,
+                                "trt_engine_cache_path": str(cache_dir)
+                            }),
+                            ("CUDAExecutionProvider", {
+                                "cudnn_conv_algo_search": "HEURISTIC",
+                                "arena_extend_strategy": "kNextPowerOfTwo"
+                            }),
+                            "CPUExecutionProvider"
+                        ]
+                        os.environ["OMP_NUM_THREADS"] = "1"
+                    elif self._device == "gpu":
                         providers = [
                             ("CUDAExecutionProvider", {
                                 "cudnn_conv_algo_search": "HEURISTIC",

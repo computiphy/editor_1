@@ -24,5 +24,6 @@ Follow this workflow for every new feature or bug fix:
 
 4. **✅ Checkpoint**:
    - Create a git commit.
+   - DO NOT git push without EXPLICIT instructions
    - // turbo
    - `git add . && git commit -m "feat/test/refactor: brief description"`

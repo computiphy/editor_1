@@ -158,13 +158,23 @@ class WeddingPipeline:
             lut_dir = output_dir / "lut"
             lut_dir.mkdir(exist_ok=True)
 
-        print(f"--- Stage 2: Grading {len(passed_images)} images (workers={workers_grading}) ---")
-        
         # Initialize Background Remover
         bg_remover = None
         if self.config.background_removal.enabled:
             from src.segmentation.background_remover import BackgroundRemover
             bg_remover = BackgroundRemover(model=self.config.background_removal.model, device=self.config.background_removal.device)
+
+        # Determine active stage 2 features for dynamic labeling
+        active_features = []
+        if self.config.restoration.enabled: active_features.append("Restoration")
+        if self.config.color_grading.enabled: active_features.append("Grading")
+        if self.config.lut_application.enabled: active_features.append("LUT")
+        
+        stage_label = " + ".join(active_features) if active_features else "Processing"
+        if not active_features and bg_remover:
+            stage_label = "Caching"
+
+        print(f"--- Stage 2: {stage_label} ({len(passed_images)} images) (workers={workers_grading}) ---")
 
         # Load reference image for grading if needed
         reference_img = None
@@ -287,10 +297,9 @@ class WeddingPipeline:
             for _ in range(workers_gpu):
                 consumer_futures.append(consumer_pool.submit(_bg_consumer, bg_pbar))
 
-        # ── Launch producer pool ──────────────────────────────────
         with ThreadPoolExecutor(max_workers=workers_grading) as grade_pool:
             futures = [grade_pool.submit(_grade_image, s) for s in passed_images]
-            for future in tqdm(as_completed(futures), total=len(passed_images), desc="Grading"):
+            for future in tqdm(as_completed(futures), total=len(passed_images), desc=stage_label):
                 res = future.result()
                 total_restored += res["restored"]
                 total_graded += res["graded"]

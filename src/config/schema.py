@@ -72,7 +72,7 @@ class LutApplicationConfig(BaseModel):
 class BackgroundRemovalConfig(BaseModel):
     enabled: bool = False
     model: str = "u2net"
-    device: str = "cpu"  # "cpu" or "gpu"
+    device: str = "cpu"  # "cpu", "gpu", or "tensorrt"
     workers: Optional[int] = None                   # Defaults to 1 if not set
 
 class LayoutExportConfig(BaseModel):

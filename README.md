@@ -428,6 +428,7 @@ Extensive profiling has revealed two critical bottlenecks in High-End hardware s
 2. **ONNX C++ Thread Starvation & CUDA Serialization:** 
    - `onnxruntime-gpu` attempts to spawn backend C++ threads equal to your physical core count, even when running on the GPU! To prevent these threads from starving your Python grading workers, `background_remover.py` forcibly sets `os.environ["OMP_NUM_THREADS"] = "1"`.
    - Even on 8GB+ GPUs like the RTX 3070 Ti, opening multiple `CUDAExecutionProvider` sessions or running multiple threads concurrently through ONNX causes severe context-switching overhead that kills throughput. For deep models like `birefnet`, **Optimal `workers_gpu` is 1.** The single worker will perfectly saturate the GPU compute power without context delays.
+3. **ONNX VRAM Inflation and Shared Memory Spillover:** The `birefnet-massive` model will inherently demand >12GB of VRAM due to its architecture and large activation maps, despite its 1GB file size. If Task Manager shows heavy "Shared GPU Memory" usage during inference, Windows is spilling excess data to system RAM, which severely degrades performance.
 
 Do not be tempted to max out `workers_gpu` just because your hardware has the VRAM. The pipeline relies on a bounded producer-consumer queue to overlap the aggressive CPU grading and the sequential GPU inference perfectly.
 
@@ -471,12 +472,22 @@ See [`color_theory.md`](color_theory.md) for the full specification of all 19 pr
 git clone <repo-url>
 cd wedding_ai_pipeline
 
-# Install dependencies
+# Install standard dependencies
 pip install -e .
+
+# To enable GPU acceleration (CUDA)
+pip install onnxruntime-gpu[cuda,cudnn]
+
+# To enable TensorRT acceleration on Windows (optional, over GPU)
+# WARNING: There is no dedicated `onnxruntime-tensorrt` PyPi package for Windows.
+# TensorRT functionality is securely bundled inside `onnxruntime-gpu`. 
+# To use it, you MUST manually download the TensorRT 10.x C++ libraries from NVIDIA, 
+# extract them, and add the `bin` folder (containing `nvinfer_10.dll`) to your Windows system PATH.
 
 # Download AI model weights (optional, for restoration)
 python scripts/download_models.py
 ```
+*Note for TensorRT users:* The very first time you process an image using the `tensorrt` device, the pipeline will pause for a few minutes while TensorRT mathematically compiles a hardware-specific neural engine. This built engine is securely cached in `.trt_engine_cache/`, meaning subsequent pipeline runs will load the engine almost instantly from your SSD.
 
 **Requirements:**
 - Python 3.11+

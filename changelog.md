@@ -28,6 +28,10 @@ Extensive profiling was conducted to resolve a performance regression (200s → 
   - `workers_gpu: 1` (ONNX CUDA sweet-spot)
   - `queue_maxsize: 8`
 
+#### 📈 Documentation: ONNX Memory Footprint
+- **Enhancement:** Documented the severe inflation of VRAM requirements during ONNX inference (weights vs activations, memory arenas, overhead).
+- **Enhancement:** Warned about Windows WDDM "Shared GPU Memory" spillover behavior in `hardware_scaling.md` and `README.md`.
+
 ---
 ## `8f8150f` ← `fa2cd5f`
 **Date:** 2026-03-10  
