@@ -5,6 +5,11 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 import concurrent.futures
 
+# Add project root to sys.path if needed
+sys.path.append(os.getcwd())
+
+from scripts.warm_trt_cache import ParallelWarmer, IModelRegistry, IEngineWarmer
+
 # We want to test the ParallelWarmer class (which doesn't exist yet)
 # and its ability to distribute work to multiple processes.
 
@@ -69,6 +74,40 @@ def test_parallel_warmer_distributes_work():
             assert results[m][0] is True
             assert results[m][1] == f"engine_{m}.engine"
 
+
+def test_parallel_warmer_caps_workers_to_model_count():
+    """
+    Verifies that ParallelWarmer automatically reduces workers if they exceed the count of models to build.
+    """
+    mock_registry = MagicMock(spec=IModelRegistry)
+    mock_registry.get_registry.return_value = {}
+    mock_registry.cache_dir = Path(".trt_engine_cache")
+    
+    mock_warmer = MagicMock(spec=IEngineWarmer)
+    mock_warmer.warm.return_value = (True, "mock_engine.engine")
+    models = ["only_one_model"]
+    
+    with patch("concurrent.futures.ProcessPoolExecutor") as mock_executor, \
+         patch("os.cpu_count", return_value=16):
+        
+        # We simulate a "Sequential Build" branch being taken because actual_workers becomes 1
+        warmer_orchestrator = ParallelWarmer(
+            models=models,
+            base_warmer=mock_warmer,
+            registry=mock_registry,
+            max_workers=10 # User asks for 10, but there's only 1 model
+        )
+        
+        results = warmer_orchestrator.run()
+        
+        # Verify executor was NEVER called because actual_workers = 1 triggers sequential logic
+        mock_executor.assert_not_called()
+        
+        # Verify warmer was called with ALL 16 cores (since actual_workers=1)
+        mock_warmer.warm.assert_called_once_with("only_one_model", 16)
+        
+        assert len(results) == 1
+        assert "only_one_model" in results
 
 if __name__ == "__main__":
     pytest.main([__file__])

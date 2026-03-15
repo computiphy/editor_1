@@ -232,10 +232,14 @@ class ParallelWarmer:
         if not models_to_build:
             return results
 
-        if self.max_workers == 1 or len(models_to_build) == 1:
-            print(f"Building {len(models_to_build)} models sequentially...")
+        # Cap workers to number of models and recalculate optimal threads
+        actual_workers = min(self.max_workers, len(models_to_build))
+        threads_per_worker = max(1, self.cpu_cores // actual_workers)
+
+        if actual_workers == 1:
+            print(f"Building {len(models_to_build)} models sequentially (1 worker, {threads_per_worker} threads)...")
             for m in tqdm(models_to_build, desc="Sequential Build"):
-                success, res = self.base_warmer.warm(m, self.threads_per_worker)
+                success, res = self.base_warmer.warm(m, threads_per_worker)
                 results[m] = (success, res)
                 if success:
                     print(f"  [SUCCESS] '{m}': {res}")
@@ -243,15 +247,15 @@ class ParallelWarmer:
                     print(f"  [ERROR] '{m}': {res}")
             return results
 
-        print(f"Building {len(models_to_build)} models in parallel using {self.max_workers} workers...")
+        print(f"Building {len(models_to_build)} models in parallel using {actual_workers} workers ({threads_per_worker} threads each)...")
         
-        with concurrent.futures.ProcessPoolExecutor(max_workers=self.max_workers) as executor:
-
+        with concurrent.futures.ProcessPoolExecutor(max_workers=actual_workers) as executor:
             # We must use a top-level function or a class method that can be pickled for the sub-process
             future_to_model = {
-                executor.submit(_warm_worker, m, self.threads_per_worker, type(self.base_warmer), str(self.registry.cache_dir)): m 
+                executor.submit(_warm_worker, m, threads_per_worker, type(self.base_warmer), str(self.registry.cache_dir)): m 
                 for m in models_to_build
             }
+
             
             for future in tqdm(concurrent.futures.as_completed(future_to_model), total=len(future_to_model), desc="Parallel Build"):
                 model = future_to_model[future]
