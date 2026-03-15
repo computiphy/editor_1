@@ -26,7 +26,13 @@ This document tracks the development, optimization, and debugging of TensorRT in
 
 ### Hardware and Environment Automation (Commit: ca1a879)
 - **Windows DLL Auto-Discovery:** Implemented a runtime discovery shim in `BackgroundRemover` that automatically scans for NVIDIA/TensorRT DLLs in `C:\Program Files\NVIDIA` and `C:\Program Files\NVIDIA GPU Computing Toolkit`. This eliminates the "Missing DLL" errors without requiring manual System PATH configuration.
+- **Enhanced Load Strategy:** Updated the discovery logic to additionally prepend found directories to the process `PATH` environment variable. This ensures that ONNX Runtime's internal C++ loader can correctly resolve the complete dependency chain (`nvinfer_10.dll` -> `cublas`, etc.) which `os.add_dll_directory` alone sometimes misses for legacy C++ plugins.
 - **Venv Integration:** Added automatic registration of pip-installed NVIDIA binaries inside the virtual environment as a secondary search layer.
+
+### Stylistic and Robustness Cleanups (Commit: pending)
+- **Standardized Naming:** Standardized all references to `u2net` to be lowercase for consistency across configuration and implementation.
+- **Improved Test Suite:** Enhanced `tests/test_tensorrt_init.py` to robustly handle `rembg` session wrapping, ensuring precise provider verification. Used standard TDD cycles (Red-Green-Refactor) for all stability improvements.
+- **Emoji Removal:** Stripped all emojis from code comments, print statements, and documentation to adhere to project standards.
 
 ### Documentation and Safety
 - **README.md:** Updated with specific `pip install onnxruntime-gpu` instructions and clear warnings about Windows-specific binary requirements for TensorRT.

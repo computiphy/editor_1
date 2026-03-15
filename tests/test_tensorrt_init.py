@@ -10,29 +10,17 @@ def test_tensorrt_execution_provider_loads():
     from the perspective of the onnxruntime C++ bridge.
     """
     remover = BackgroundRemover(model="u2net", device="tensorrt")
+    session = remover._get_session()
     
-    # Attempting to load the session should NOT fail with Error 126
-    try:
-        session = remover._get_session()
+    # Verify that TensorrtExecutionProvider is actually in the session's providers
+    # rembg sessions often wrap the ORT session in .inner_session or just are the session
+    if hasattr(session, 'inner_session'):
+        ort_session = session.inner_session
+    else:
+        ort_session = session
         
-        # Verify that TensorrtExecutionProvider is actually in the session's providers
-        providers = session.get_providers()
-        assert "TensorrtExecutionProvider" in providers, f"Expected TensorrtExecutionProvider but got {providers}"
-        
-    except Exception as e:
-        import traceback
-        error_msg = str(e)
-        available = ort.get_available_providers()
-        print(f"\nCaught Exception: {error_msg}")
-        print(f"Available Providers in OS: {available}")
-        traceback.print_exc()
-        
-        if "nvinfer_10.dll" in error_msg or "Error 126" in error_msg:
-            pytest.fail(f"RED: TensorRT DLL loading failed: {error_msg}")
-        elif "TensorrtExecutionProvider" in error_msg and "is not in available provider names" in error_msg:
-             pytest.fail(f"RED: TensorRT provider not available: {error_msg}. Available: {available}")
-        else:
-            pytest.fail(f"Failure during TensorRT init: {error_msg}")
+    providers = ort_session.get_providers()
+    assert "TensorrtExecutionProvider" in providers, f"Expected TensorrtExecutionProvider but got {providers}"
 
 if __name__ == "__main__":
     # Allow running directly for quick feedback
