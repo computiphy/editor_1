@@ -68,6 +68,9 @@ class LutApplicationConfig(BaseModel):
     enabled: bool = False
     lut_path: Optional[str] = None          # Path to a .cube LUT file
     lut_intensity: float = 1.0              # Blend: 0.0 = original, 1.0 = full LUT
+    logify: bool = False                    # Convert linear → log before LUT
+    delogify: bool = False                  # Convert log → linear after LUT
+    log_curve: str = "slog3"                # slog3 | logc3 | logc4 | cineon
 
 class BackgroundRemovalConfig(BaseModel):
     enabled: bool = False

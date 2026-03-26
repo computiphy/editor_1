@@ -90,7 +90,12 @@ class WeddingPipeline:
             _lut_file = _Path(self.config.lut_application.lut_path)
             if _lut_file.exists():
                 lut_data = parse_cube_file(str(_lut_file))
-                print(f"    LUT Stage: {_lut_file.name} (intensity={self.config.lut_application.lut_intensity})")
+                log_info = ""
+                if self.config.lut_application.logify:
+                    log_info += f", logify={self.config.lut_application.log_curve}"
+                if self.config.lut_application.delogify:
+                    log_info += f", delogify={self.config.lut_application.log_curve}"
+                print(f"    LUT Stage: {_lut_file.name} (intensity={self.config.lut_application.lut_intensity}{log_info})")
             else:
                 print(f"    Warning: LUT file not found: {_lut_file}")
 
@@ -232,12 +237,25 @@ class WeddingPipeline:
                 if self.config.lut_application.enabled and lut_data is not None and lut_dir is not None:
                     from src.color.lut3d import apply_lut3d_array
                     import numpy as np
+
                     lut_input = np.clip(img.astype(np.float32) / 255.0, 0.0, 1.0)
+
+                    # Optional: convert linear → log space before LUT
+                    if self.config.lut_application.logify:
+                        from src.color.log_curves import logify as _logify
+                        lut_input = _logify(lut_input, curve=self.config.lut_application.log_curve)
+
                     lut_arr, lut_size = lut_data
                     lut_out = apply_lut3d_array(
                         lut_input, lut_arr, lut_size,
                         intensity=self.config.lut_application.lut_intensity
                     )
+
+                    # Optional: convert log → linear after LUT
+                    if self.config.lut_application.delogify:
+                        from src.color.log_curves import delogify as _delogify
+                        lut_out = _delogify(lut_out, curve=self.config.lut_application.log_curve)
+
                     lut_img = np.clip(lut_out * 255.0, 0, 255).astype(np.uint8)
                     lut_save_path = lut_dir / rel_path
                     lut_save_path.parent.mkdir(parents=True, exist_ok=True)

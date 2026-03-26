@@ -1,6 +1,6 @@
 pipeline:
-  name: "Test_SOTA_V2_BDAY26022026_trial3"
-  input_dir: "D:/studio/works/B DAY 26-02-26/01/"
+  name: "Test_SOTA_V2_BDAY26022026_cut"
+  input_dir: "D:/studio/works/B DAY 26-02-26/PHOTOS"
   input_formats: ["raw", "jpg", "jpeg"]
   output_base: "D:/studio/tools/vibecoding/editor_1/wedding_ai_pipeline/output"
   gpu_backend: "auto"
@@ -56,8 +56,8 @@ layout:
   padding: 60                       # outer margin in pixels
   gutter: 30                        # gap between cells in pixels
   use_cutouts: false                # true = composite RGBA cutouts over background
-  background_directory: "assets/backgrounds/2"
-  background_strategy: "dominant"   # dominant | average | random | round_robin | shuffle | fixed
+  background_directory: "assets/backgrounds/lite_green"
+  background_strategy: "round_robin"   # dominant | average | random | round_robin | shuffle | fixed
   background_seed: ~                 # null = non-deterministic; set an int for round_robin/shuffle/random
   ai_style: "magazine"              # classic | elegant | minimal | dynamic | magazine
   ai_seed: 42                       # seed for reproducibility
